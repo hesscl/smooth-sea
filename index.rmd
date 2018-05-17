@@ -1,7 +1,5 @@
 ---
 title: "smooth-sea"
-author: "Chris Hess"
-date: "May 17, 2018"
 output: 
   flexdashboard::flex_dashboard:
     navbar:
@@ -14,5 +12,23 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+#source("./smoothSpatiotemporal.R", echo = FALSE)
 ```
+
+Home {data-icon="fa-home"}
+=====================================
+
+Column
+-------------------------------------
+
+### Welcome!
+
+This website provides information for the paper _Estimating Neighborhood Asking Rents using Scraped Craigslist Rental Listings_
+
+You can download the R source code and data for this project from Github [here](https://github.com/hesscl/smooth-sea)
+
+Contact Chris Hess at [hesscl@uw.edu](mailto://hesscl@uw.edu) for more information about this report.
+
+_This page was last updated: `r Sys.Date()`_
 
