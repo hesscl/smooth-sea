@@ -13,8 +13,329 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-#source("./smoothSpatiotemporal.R", echo = FALSE)
+#packages
+library(tidyverse)
+library(forcats)
+library(haven)
+library(lubridate)
+library(haven)
+library(zoo)
+library(ggthemes)
+library(RColorBrewer)
+library(sp)
+library(spdplyr)
+library(geosphere)
+library(rgdal)
+library(rgeos)
+library(sqldf)
+library(spdep)
+library(viridis)
+library(latex2exp)
+library(plotly)
+
+#load ACS data extract (codebook in folder)
+census <- read_csv(file = "./input/acsExtract.csv")
+
+#read in tract shapefiles for seattle
+sea_shp <- readOGR(dsn = "R:/Project/seattle_rental_market/data/geo/sea_tract_2010/sea_tract_2010.shp",
+                  layer = "sea_tract_2010",
+                  GDAL1_integer64_policy = TRUE,
+                  stringsAsFactors = F)
+
+#determine config (dev or github)
+if(file.exists("../data/cl/craigslistDB.sqlite")){
+  #connect to database if file.exists
+  DB <- dbConnect(SQLite(), dbname="../data/cl/craigslistDB.sqlite")
+  cl <- tbl(DB, "clean") #create dbi for clean listing table
+  
+  #compute tract aggregates for CL listing count
+  tract <- cl %>%
+    collect %>% #bring db query into memory
+    filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), 
+           GISJOIN %in% sea_shp@data$GISJOIN) %>% #only listings with valid Bed/Rent, seattle tracts
+    distinct(cleanBeds, cleanRent, cleanSqft, matchAddress, matchAddress2, .keep_all = T) %>% #dedupe to unique address-bed-rent combos
+    dplyr::select(listingDate, GEOID10, GISJOIN, seattle, matchAddress, matchType, cleanBeds, cleanRent, cleanSqft) %>% #SELECT these columns
+    mutate(listingDate = as.Date(listingDate),
+           listingQtr = as.yearqtr(listingDate)) %>%
+    filter(cleanBeds %in% c(0, 1, 2, 3)) %>%
+    group_by(GEOID10, GISJOIN, listingQtr) %>% #group listings by tract, qtr within tract
+    summarize(nListings = n(),
+              n1B = sum(cleanBeds == 1),
+              nGT2B = sum(cleanBeds > 2),
+              medRent = median(cleanRent),
+              med0B = median(cleanRent[cleanBeds==0]),
+              med1B = median(cleanRent[cleanBeds==1]),
+              med2B = median(cleanRent[cleanBeds==2]),
+              med3B = median(cleanRent[cleanBeds==3]),
+              lagRent = lag(cleanRent)) %>% #create tract aggregates
+    mutate(pGT2B = nGT2B/nListings) %>%
+    ungroup %>%
+    arrange(GISJOIN, listingQtr)
+  dbDisconnect(DB)
+  write_csv(tract, "./input/tractCl.csv")
+  
+} else{
+  #if github config, read in extract from cl db
+  tract <- read_csv("./input/tractCl.csv")
+}
+
+
+#### A. construct panel (some missingness) ------------------------------------
+
+census <- census[match(sea_shp@data$GISJOIN, census$GISJOIN),]
+
+census <- census %>%
+  mutate(nHU = AF7PE001,
+         pOwnoccHU = AF7PE002/AF7PE001,
+         medHUVal = AF9LE001)
+
+### Training periods
+
+#studios
+Q2_2017 <- tract %>%
+  filter(listingQtr == "2017 Q2") %>%
+  right_join(census) %>%
+  ungroup %>%
+  mutate(listingQtr = "2017 Q2",
+         Qtr = "Q2",
+         actualRent = med1B)
+
+
+Q3_2017 <- tract %>%
+  filter(listingQtr == "2017 Q3") %>%
+  right_join(census) %>%
+  ungroup %>%
+  mutate(listingQtr = "2017 Q3",
+         Qtr = "Q3",
+         actualRent = med1B)
+
+
+Q4_2017 <- tract %>%
+  filter(listingQtr == "2017 Q4") %>%
+  right_join(census) %>%
+  ungroup %>%
+  mutate(listingQtr = "2017 Q4",
+         Qtr = "Q4",
+         actualRent = med1B)
+
+
+Q1_2018 <- tract %>%
+  filter(listingQtr == "2018 Q1") %>%
+  right_join(census) %>%
+  ungroup %>%
+  mutate(listingQtr = "2018 Q1",
+         Qtr = "Q1",
+         actualRent = med1B)
+
+
+### Forecast/test period
+
+Q2_2018 <- tract %>%
+  filter(listingQtr == "2018 Q2") %>%
+  right_join(census) %>%
+  ungroup %>%
+  mutate(listingQtr = "2018 Q2",
+         Qtr = "Q2",
+         actualRent = med1B,
+         medRent = NA)
+Q2_2018 <- Q2_2018[match(sea_shp@data$GISJOIN, Q2_2018$GISJOIN),]
+
+
+sea_df <- bind_rows(Q2_2017, Q3_2017, Q4_2017, Q1_2018, Q2_2018)
+sea_df$listingQtr <- as.yearqtr(sea_df$listingQtr)
+
+sea_df <- sea_df %>% 
+  dplyr::select(-GEOID10) %>%
+  dplyr::select(GISJOIN, listingQtr, Qtr, medRent, med1B, lagRent, actualRent, nHU, 
+                pOwnoccHU, medHUVal, pGT2B)
+
+
+#### ACF for panel ------------------------------------------------------------
+
+acf_df <- data.frame(sea_df = unique(sea_df$GISJOIN), acf = rep(NA, length(unique(sea_df$GISJOIN))))
+for(i in unique(sea_df$GISJOIN)){
+  obs <- sea_df[sea_df$GISJOIN == i,]
+  ts <- ts(obs$medRent)
+  if(sum(is.na(ts)) > 0){
+    next
+  } else{
+    #print(ts)
+    acf <- acf(ts)
+    #print(acf)
+    acf_df$acf[acf_df$sea_df == tract] = list(acf)
+  }
+}
+
+#ACFs are weak with only 5 periods to assess with. Highest L1 value is around .5 but many are
+#weakened by a noisey quarter
+
+
+#### F. INLA Models of CL Rent ------------------------------------------------
+
+library(INLA)
+
+#geo information for INLA
+sea_shp <- readOGR(dsn = "R:/Project/seattle_rental_market/data/geo/sea_tract_2010/sea_tract_2010.shp",
+                   layer = "sea_tract_2010",
+                   GDAL1_integer64_policy = TRUE,
+                   stringsAsFactors = F)
+
+cens <- gCentroid(sea_shp, byid = T)
+cens <- data.frame(long = cens@coords[,1],
+                   lat = cens@coords[,2])
+cens <- cens %>% mutate(row = row_number())
+sea_ff <- fortify(sea_shp)
+
+ggplot(sea_ff, aes(x = long, y = lat, group = group)) + 
+  geom_polygon(fill = "grey90", color = "white") +
+  geom_text(data = cens, aes(x  = long, y = lat, label = row, group = row))
+
+sea_adj <- poly2nb(sea_shp)
+nb2INLA("R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph", sea_adj)
+sea_df$idtract <- rep(1:134, 5)
+sea_df$idtract1 <- rep(1:134, 5)
+sea_df$idqtr <- as.numeric(sea_df$listingQtr)
+sea_df$idqtr1 <- sea_df$idqtr
+sea_df$idtractqtr <- paste(sea_df$idtract, sea_df$idqtr)
+
+
+#Seattle median rent models -----------------------------------------------
+
+#fixed effect for qtr only
+form.int <- med1B ~ 1 + Qtr
+
+m.int <- inla(form.int, 
+             family = "lognormal", 
+             data = sea_df,
+             control.predictor = list(compute = TRUE),
+             control.compute = list(dic = TRUE, waic = TRUE))
+
+summary(m.int)
+sea_df$int_Med <- m.int$summary.linear.predictor[, "0.5quant"]
+sea_df$int_SD <- m.int$summary.linear.predictor[, "sd"]
+sea_df$int_postWidth <- m.int$summary.linear.predictor[, "0.975quant"] - m.int$summary.linear.predictor[,"0.025quant"]
+sea_df$int_Eff <- m.int$summary.random$idtract[sea_df$idtract, "0.5quant"] 
+
+#fixed qtr + iid tract random effect
+form.ns <- med1B ~ 1 + Qtr + 
+   f(idtract, model = "iid")
+
+m.ns <- inla(form.ns, 
+              family = "lognormal", 
+              data = sea_df,
+              control.predictor = list(compute = TRUE),
+              control.compute = list(dic = TRUE, waic = TRUE))
+
+summary(m.ns)
+sea_df$ns_Med <- m.ns$summary.linear.predictor[, "0.5quant"]
+sea_df$ns_SD <- m.ns$summary.linear.predictor[, "sd"]
+sea_df$ns_postWidth <- m.ns$summary.linear.predictor[, "0.975quant"] - m.ns$summary.linear.predictor[,"0.025quant"]
+sea_df$ns_Eff <- m.ns$summary.random$idtract[sea_df$idtract, "0.5quant"] 
+
+#IID tract random effect + AR(1) process
+form.nsar1 <- med1B ~ 1 +
+  f(idtract, model = "iid") +
+  f(idqtr, model = "ar1") + f(idqtr1, model = "iid")
+
+m.nsar1 <- inla(form.nsar1, 
+               family = "lognormal", 
+               data = sea_df,
+               control.predictor = list(compute = TRUE),
+               control.compute = list(dic = TRUE, waic = TRUE))
+
+summary(m.nsar1) #NB: does not improve fit to use random effect time specification, using fixed effects
+sea_df$nsar1_Med <- m.nsar1$summary.linear.predictor[, "0.5quant"]
+sea_df$nsar1_SD <- m.nsar1$summary.linear.predictor[, "sd"]
+sea_df$nsar1_postWidth <- m.nsar1$summary.linear.predictor[, "0.975quant"] - m.nsar1$summary.linear.predictor[,"0.025quant"]
+sea_df$nsar1_Eff <- m.nsar1$summary.random$idtract[sea_df$idtract, "0.5quant"] 
+
+#spatial random effect model (BYM 1991) with seasonal dummies
+form.bym <- med1B ~ 1 + Qtr +
+  f(idtract, model = "bym", #ICAR spatial RE for tract neighbors + IID RE for tract
+    scale.model = T,
+    graph = "R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph")
+
+m.bym <- inla(form.bym, 
+             family = "lognormal", 
+             data = sea_df,
+             control.predictor = list(compute = TRUE),
+             control.compute = list(dic = TRUE, waic = TRUE))
+
+summary(m.bym)
+sea_df$bym_Med <- m.bym$summary.linear.predictor[, "0.5quant"]
+sea_df$bym_SD <- m.bym$summary.linear.predictor[, "sd"]
+sea_df$bym_postWidth <- m.bym$summary.linear.predictor[, "0.975quant"] - m.bym$summary.linear.predictor[,"0.025quant"]
+sea_df$bym_Eff <- m.bym$summary.random$idtract[sea_df$idtract, "0.5quant"] 
+
+#spatio-temporal smoothing model with linear space-time interaction (Bernadelli 1995)
+form.spt <- med1B ~ 1 + Qtr +
+  f(idtract, model = "bym", #ICAR spatial RE for tract neighbors + IID RE for tract
+    scale.model = T,
+    graph = "R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph") +
+  f(idtractqtr, model="iid") + #exchangeable RE for period
+  f(idqtr, model = "iid") 
+
+m.spt <- inla(form.spt, 
+              family = "lognormal", 
+              data = sea_df,
+              control.predictor = list(compute = TRUE),
+              control.compute = list(dic = TRUE, waic = TRUE))
+
+summary(m.spt)
+sea_df$spt_Med <- m.spt$summary.linear.predictor[, "0.5quant"]
+sea_df$spt_SD <- m.spt$summary.linear.predictor[, "sd"]
+sea_df$spt_postWidth <- m.spt$summary.linear.predictor[, "0.975quant"] - m.spt$summary.linear.predictor[,"0.025quant"]
+sea_df$spt_Eff <- m.spt$summary.random$idtract[sea_df$idtract, "0.5quant"] 
+
+#overfitting? too much bumpiness qtr-to-qtr
+
+#### Maps of Model Output ------------------------------------------------------------------
+
+sea_df <- sea_df %>%
+  mutate_at(.vars = vars(matches("_Med")),
+            .funs = exp) %>%
+  mutate_at(.vars = vars(matches("_SD")),
+            .funs = exp) %>%
+  group_by(GISJOIN) %>% 
+  arrange(GISJOIN, listingQtr) %>%
+  mutate(spt_traj = spt_Med - lag(spt_Med, 4)) %>%
+  ungroup %>%
+  group_by(GISJOIN) %>%
+  mutate(spt_traj = sum(spt_traj, na.rm=T))
+
+sea_df
+
+sea_shp@data$id <- rownames(sea_shp@data)
+sea_shp@data <- left_join(sea_shp@data, sea_df)
+sea_f <- fortify(sea_shp)
+sea_f <- inner_join(sea_f, sea_shp@data,"id")
+
+rmse <- function(error){sqrt(mean(error^2))}
+mae <- function(error){mean(abs(error))}
+
+#table of fit statistics
+fit_stats <- sea_df %>%
+  mutate(train_test = ifelse(listingQtr == "2018 Q2", "Test", "Training")) %>%
+  mutate(int_err = actualRent - int_Med,
+         ns_err = actualRent - ns_Med,
+         nsar1_err = actualRent - nsar1_Med,
+         bym_err = actualRent - bym_Med,
+         spt_err = actualRent - spt_Med) %>% 
+  group_by(train_test) %>%
+  summarize(int_rmse = rmse(int_err[!is.na(int_err)]),
+            int_mae = mae(int_err[!is.na(int_err)]),
+            ns_rmse = rmse(ns_err[!is.na(ns_err)]),
+            ns_mae = mae(ns_err[!is.na(ns_err)]),
+            nsar1_rmse = rmse(nsar1_err[!is.na(nsar1_err)]),
+            nsar1_mae = mae(nsar1_err[!is.na(nsar1_err)]),
+            bym_rmse = rmse(bym_err[!is.na(bym_err)]),
+            bym_mae = mae(bym_err[!is.na(bym_err)]),
+            spt_rmse = rmse(spt_err[!is.na(spt_err)]),
+            spt_mae = mae(spt_err[!is.na(spt_err)])) %>%
+  dplyr::select(train_test, ends_with("_rmse"), ends_with("_mae"))
+
 ```
+
 
 Home {data-icon="fa-home"}
 =====================================
@@ -31,4 +352,25 @@ You can download the R source code and data for this project from Github [here](
 Contact Chris Hess at [hesscl@uw.edu](mailto://hesscl@uw.edu) for more information about this report.
 
 _This page was last updated: `r Sys.Date()`_
+
+Column
+-------------------------------------
+
+### Observed vs. Smoothed Rent Estimates
+
+```{r index.maps, echo=F}
+smoothed <- ggplot(sea_f %>% filter(listingQtr == "2018 Q2"), 
+                   aes(x = long, y = lat, group = group, fill = bym_Med, label = GISJOIN)) +
+  #facet_grid(~ listingQtr) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(limits = c(750, 2500), labels = scales::dollar) +
+  coord_quickmap() +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  labs(title = "Spatially Smoothed 1B Median Rent",
+       fill = "Smoothed")
+ggplotly(smoothed, tooltip = c("label", "fill"))
+```
 

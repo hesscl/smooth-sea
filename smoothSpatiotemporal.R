@@ -16,7 +16,6 @@ library(sp)
 library(spdplyr)
 library(geosphere)
 library(rgdal)
-library(rgeos)
 library(sqldf)
 library(spdep)
 library(viridis)
@@ -28,9 +27,9 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 #load ACS data extract (codebook in folder)
 census <- read_csv(file = "./input/acsExtract.csv")
 
-#read in tract shapefiles for king county
-kc_shp <- readOGR(dsn = "R:/Project/seattle_rental_market/data/geo/KCTract2010/KCTract2010.shp",
-                  layer = "KCTract2010",
+#read in tract shapefiles for seattle
+sea_shp <- readOGR(dsn = "R:/Project/seattle_rental_market/data/geo/sea_tract_2010/sea_tract_2010.shp",
+                  layer = "sea_tract_2010",
                   GDAL1_integer64_policy = TRUE,
                   stringsAsFactors = F)
 
@@ -43,23 +42,22 @@ if(file.exists("../data/cl/craigslistDB.sqlite")){
   #compute tract aggregates for CL listing count
   tract <- cl %>%
     collect %>% #bring db query into memory
-    filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft)) %>% #only listings with valid Bed/Rent
-    filter(GISJOIN %in% kc_shp@data$GISJOIN) %>% #filter to KC only (db has metro area)
+    filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), GISJOIN %in% sea_shp@data$GISJOIN) %>% #only listings with valid Bed/Rent
     distinct(cleanBeds, cleanRent, cleanSqft, matchAddress, matchAddress2, .keep_all = T) %>% #dedupe to unique address-bed-rent combos
     dplyr::select(listingDate, GEOID10, GISJOIN, seattle, matchAddress, matchType, cleanBeds, cleanRent, cleanSqft) %>% #SELECT these columns
     mutate(listingDate = as.Date(listingDate),
            listingQtr = as.yearqtr(listingDate)) %>%
-    filter(listingDate >= "2017-04-01", cleanBeds %in% c(0, 1, 2, 3)) %>%
+    filter(cleanBeds %in% c(0, 1, 2, 3)) %>%
     group_by(GEOID10, GISJOIN, listingQtr) %>% #group listings by tract, qtr within tract
     summarize(nListings = n(),
+              n1B = sum(cleanBeds == 1),
               nGT2B = sum(cleanBeds > 2),
               medRent = median(cleanRent),
               med0B = median(cleanRent[cleanBeds==0]),
               med1B = median(cleanRent[cleanBeds==1]),
               med2B = median(cleanRent[cleanBeds==2]),
               med3B = median(cleanRent[cleanBeds==3]),
-              lagRent = lag(cleanRent),
-              seattle = max(seattle)) %>% #create tract aggregates
+              lagRent = lag(cleanRent)) %>% #create tract aggregates
     mutate(pGT2B = nGT2B/nListings) %>%
     ungroup %>%
     arrange(GISJOIN, listingQtr)
@@ -74,12 +72,10 @@ if(file.exists("../data/cl/craigslistDB.sqlite")){
 
 #### A. construct panel (some missingness) ------------------------------------
 
-census <- census[match(kc_shp@data$GISJOIN, census$GISJOIN),]
+census <- census[match(sea_shp@data$GISJOIN, census$GISJOIN),]
 
 census <- census %>%
-  filter(STATEA == "53", COUNTYA == "033") %>%
-  mutate(idtract1 = idtract,
-         nHU = AF7PE001,
+  mutate(nHU = AF7PE001,
          pOwnoccHU = AF7PE002/AF7PE001,
          medHUVal = AF9LE001)
 
@@ -92,7 +88,8 @@ Q2_2017 <- tract %>%
   ungroup %>%
   mutate(listingQtr = "2017 Q2",
          Qtr = "Q2",
-         actualRent = medRent)
+         actualRent = med1B)
+
 
 Q3_2017 <- tract %>%
   filter(listingQtr == "2017 Q3") %>%
@@ -100,7 +97,8 @@ Q3_2017 <- tract %>%
   ungroup %>%
   mutate(listingQtr = "2017 Q3",
          Qtr = "Q3",
-         actualRent = medRent)
+         actualRent = med1B)
+
 
 Q4_2017 <- tract %>%
   filter(listingQtr == "2017 Q4") %>%
@@ -108,7 +106,8 @@ Q4_2017 <- tract %>%
   ungroup %>%
   mutate(listingQtr = "2017 Q4",
          Qtr = "Q4",
-         actualRent = medRent)
+         actualRent = med1B)
+
 
 Q1_2018 <- tract %>%
   filter(listingQtr == "2018 Q1") %>%
@@ -116,34 +115,36 @@ Q1_2018 <- tract %>%
   ungroup %>%
   mutate(listingQtr = "2018 Q1",
          Qtr = "Q1",
-         actualRent = medRent)
+         actualRent = med1B)
+
 
 ### Forecast/test period
 
-#studio
 Q2_2018 <- tract %>%
   filter(listingQtr == "2018 Q2") %>%
   right_join(census) %>%
   ungroup %>%
   mutate(listingQtr = "2018 Q2",
          Qtr = "Q2",
-         actualRent = medRent,
+         actualRent = med1B,
          medRent = NA)
+Q2_2018 <- Q2_2018[match(sea_shp@data$GISJOIN, Q2_2018$GISJOIN),]
 
-kc_df <- bind_rows(Q2_2017, Q3_2017, Q4_2017, Q1_2018, Q2_2018)
-kc_df$listingQtr <- as.yearqtr(kc_df$listingQtr)
 
-kc_df <- kc_df %>% 
+sea_df <- bind_rows(Q2_2017, Q3_2017, Q4_2017, Q1_2018, Q2_2018)
+sea_df$listingQtr <- as.yearqtr(sea_df$listingQtr)
+
+sea_df <- sea_df %>% 
   dplyr::select(-GEOID10) %>%
-  dplyr::select(GISJOIN, listingQtr, Qtr, idtract, idtract1, medRent, lagRent, actualRent, nHU, 
+  dplyr::select(GISJOIN, listingQtr, Qtr, medRent, med1B, lagRent, actualRent, nHU, 
                 pOwnoccHU, medHUVal, pGT2B)
 
 
 #### ACF for panel ------------------------------------------------------------
 
-acf_df <- data.frame(kc_df = unique(kc_df$GISJOIN), acf = rep(NA, length(unique(kc_df$GISJOIN))))
-for(i in unique(kc_df$GISJOIN)){
-  obs <- kc_df[kc_df$GISJOIN == i,]
+acf_df <- data.frame(sea_df = unique(sea_df$GISJOIN), acf = rep(NA, length(unique(sea_df$GISJOIN))))
+for(i in unique(sea_df$GISJOIN)){
+  obs <- sea_df[sea_df$GISJOIN == i,]
   ts <- ts(obs$medRent)
   if(sum(is.na(ts)) > 0){
     next
@@ -151,7 +152,7 @@ for(i in unique(kc_df$GISJOIN)){
     #print(ts)
     acf <- acf(ts)
     #print(acf)
-    acf_df$acf[acf_df$kc_df == tract] = list(acf)
+    acf_df$acf[acf_df$sea_df == tract] = list(acf)
   }
 }
 
@@ -164,152 +165,149 @@ for(i in unique(kc_df$GISJOIN)){
 library(INLA)
 
 #geo information for INLA
-kc_shp <- readOGR(dsn = "R:/Project/seattle_rental_market/data/geo/KCTract2010/KCTract2010.shp",
-                  layer = "KCTract2010",
-                  GDAL1_integer64_policy = TRUE,
-                  stringsAsFactors = F)
+sea_shp <- readOGR(dsn = "R:/Project/seattle_rental_market/data/geo/sea_tract_2010/sea_tract_2010.shp",
+                   layer = "sea_tract_2010",
+                   GDAL1_integer64_policy = TRUE,
+                   stringsAsFactors = F)
 
-cens <- gCentroid(kc_shp, byid = T)
+cens <- gCentroid(sea_shp, byid = T)
 cens <- data.frame(long = cens@coords[,1],
                    lat = cens@coords[,2])
 cens <- cens %>% mutate(row = row_number())
-kc_ff <- fortify(kc_shp)
+sea_ff <- fortify(sea_shp)
 
-ggplot(kc_ff, aes(x = long, y = lat, group = group)) + 
+ggplot(sea_ff, aes(x = long, y = lat, group = group)) + 
   geom_polygon(fill = "grey90", color = "white") +
   geom_text(data = cens, aes(x  = long, y = lat, label = row, group = row))
 
-kc_adj <- poly2nb(kc_shp)
-nb2INLA("R:/Project/seattle_rental_market/report/spatial_epi/kctract.graph", kc_adj)
-kc_df$idqtr <- as.character(kc_df$listingQtr)
-kc_df$idqtr1 <- kc_df$idqtr
-kc_df$idtractqtr <- paste(kc_df$idtract, kc_df$idqtr)
+sea_adj <- poly2nb(sea_shp)
+nb2INLA("R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph", sea_adj)
+sea_df$idtract <- rep(1:134, 5)
+sea_df$idtract1 <- rep(1:134, 5)
+sea_df$idqtr <- as.numeric(sea_df$listingQtr)
+sea_df$idqtr1 <- sea_df$idqtr
+sea_df$idtractqtr <- paste(sea_df$idtract, sea_df$idqtr)
 
-kc_df <- kc_df %>%
-  arrange(GISJOIN, listingQtr)
 
-#King County median rent models -----------------------------------------------
+#Seattle median rent models -----------------------------------------------
 
-#random intercept for qtr only
-form.int <- medRent ~ -1 + f(idqtr1, model = "iid")
+#fixed effect for qtr only
+form.int <- med1B ~ 1 + Qtr
 
 m.int <- inla(form.int, 
              family = "lognormal", 
-             data = kc_df,
+             data = sea_df,
              control.predictor = list(compute = TRUE),
              control.compute = list(dic = TRUE, waic = TRUE))
 
 summary(m.int)
-kc_df$int_Med <- m.int$summary.linear.predictor[, "0.5quant"]
-kc_df$int_SD <- m.int$summary.linear.predictor[, "sd"]
-kc_df$int_postWidth <- m.int$summary.linear.predictor[, "0.975quant"] - m.int$summary.linear.predictor[,"0.025quant"]
-kc_df$int_Eff <- m.int$summary.random$idtract[kc_df$idtract, "0.5quant"] 
+sea_df$int_Med <- m.int$summary.linear.predictor[, "0.5quant"]
+sea_df$int_SD <- m.int$summary.linear.predictor[, "sd"]
+sea_df$int_postWidth <- m.int$summary.linear.predictor[, "0.975quant"] - m.int$summary.linear.predictor[,"0.025quant"]
+sea_df$int_Eff <- m.int$summary.random$idtract[sea_df$idtract, "0.5quant"] 
 
-#fixed intercept for beds + iid random effect
-form.ns <- medRent ~ 1 + Qtr + f(idtract, model = "iid")
+#fixed qtr + iid tract random effect
+form.ns <- med1B ~ 1 + Qtr + 
+   f(idtract, model = "iid")
 
 m.ns <- inla(form.ns, 
-              family = "normal", 
-              data = kc_df,
+              family = "lognormal", 
+              data = sea_df,
               control.predictor = list(compute = TRUE),
               control.compute = list(dic = TRUE, waic = TRUE))
 
 summary(m.ns)
-kc_df$ns_Med <- m.ns$summary.linear.predictor[, "0.5quant"]
-kc_df$ns_SD <- m.ns$summary.linear.predictor[, "sd"]
-kc_df$ns_postWidth <- m.ns$summary.linear.predictor[, "0.975quant"] - m.ns$summary.linear.predictor[,"0.025quant"]
-kc_df$ns_Eff <- m.ns$summary.random$idtract[kc_df$idtract, "0.5quant"] 
+sea_df$ns_Med <- m.ns$summary.linear.predictor[, "0.5quant"]
+sea_df$ns_SD <- m.ns$summary.linear.predictor[, "sd"]
+sea_df$ns_postWidth <- m.ns$summary.linear.predictor[, "0.975quant"] - m.ns$summary.linear.predictor[,"0.025quant"]
+sea_df$ns_Eff <- m.ns$summary.random$idtract[sea_df$idtract, "0.5quant"] 
 
-#fixed intercept for beds + fixed effects for quarter + tract IID random effect
-form.nst <- medRent ~ 1 + Qtr + f(idtract, model = "iid")
-
-m.nst <- inla(form.nst, 
-              family = "lognormal", 
-              data = kc_df,
-              control.predictor = list(compute = TRUE),
-              control.compute = list(dic = TRUE, waic = TRUE))
-
-summary(m.nst)
-kc_df$nst_Med <- m.nst$summary.linear.predictor[, "0.5quant"]
-kc_df$nst_SD <- m.nst$summary.linear.predictor[, "sd"]
-kc_df$nst_postWidth <- m.nst$summary.linear.predictor[, "0.975quant"] - m.nst$summary.linear.predictor[,"0.025quant"]
-kc_df$nst_Eff <- m.nst$summary.random$idtract[kc_df$idtract, "0.5quant"] 
-
-#fixed intercept for beds + IID tract random effect + AR(1) process
-form.nsar1 <- medRent ~ 1 + f(idtract, model = "iid") +
+#IID tract random effect + AR(1) process
+form.nsar1 <- med1B ~ 1 +
+  f(idtract, model = "iid") +
   f(idqtr, model = "ar1") + f(idqtr1, model = "iid")
 
 m.nsar1 <- inla(form.nsar1, 
-               family = "normal", 
-               data = kc_df,
+               family = "lognormal", 
+               data = sea_df,
                control.predictor = list(compute = TRUE),
                control.compute = list(dic = TRUE, waic = TRUE))
 
 summary(m.nsar1) #NB: does not improve fit to use random effect time specification, using fixed effects
-kc_df$nsar1_Med <- m.nsar1$summary.linear.predictor[, "0.5quant"]
-kc_df$nsar1_SD <- m.nsar1$summary.linear.predictor[, "sd"]
-kc_df$nsar1_postWidth <- m.nsar1$summary.linear.predictor[, "0.975quant"] - m.nsar1$summary.linear.predictor[,"0.025quant"]
-kc_df$nsar1_Eff <- m.nsar1$summary.random$idtract[kc_df$idtract, "0.5quant"] 
+sea_df$nsar1_Med <- m.nsar1$summary.linear.predictor[, "0.5quant"]
+sea_df$nsar1_SD <- m.nsar1$summary.linear.predictor[, "sd"]
+sea_df$nsar1_postWidth <- m.nsar1$summary.linear.predictor[, "0.975quant"] - m.nsar1$summary.linear.predictor[,"0.025quant"]
+sea_df$nsar1_Eff <- m.nsar1$summary.random$idtract[sea_df$idtract, "0.5quant"] 
 
 #spatial random effect model (BYM 1991) with seasonal dummies
-form.bym <- medRent ~ 1 + Qtr +
+form.bym <- med1B ~ 1 + Qtr +
   f(idtract, model = "bym", #ICAR spatial RE for tract neighbors + IID RE for tract
-    graph = "R:/Project/seattle_rental_market/report/spatial_epi/kctract.graph")
+    scale.model = T,
+    graph = "R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph")
 
 m.bym <- inla(form.bym, 
-             family = "normal", 
-             data = kc_df,
+             family = "lognormal", 
+             data = sea_df,
              control.predictor = list(compute = TRUE),
              control.compute = list(dic = TRUE, waic = TRUE))
 
 summary(m.bym)
-kc_df$bym_Med <- m.bym$summary.linear.predictor[, "0.5quant"]
-kc_df$bym_SD <- m.bym$summary.linear.predictor[, "sd"]
-kc_df$bym_postWidth <- m.bym$summary.linear.predictor[, "0.975quant"] - m.bym$summary.linear.predictor[,"0.025quant"]
-kc_df$bym_Eff <- m.bym$summary.random$idtract[kc_df$idtract, "0.5quant"] 
+sea_df$bym_Med <- m.bym$summary.linear.predictor[, "0.5quant"]
+sea_df$bym_SD <- m.bym$summary.linear.predictor[, "sd"]
+sea_df$bym_postWidth <- m.bym$summary.linear.predictor[, "0.975quant"] - m.bym$summary.linear.predictor[,"0.025quant"]
+sea_df$bym_Eff <- m.bym$summary.random$idtract[sea_df$idtract, "0.5quant"] 
 
 #spatio-temporal smoothing model with linear space-time interaction (Bernadelli 1995)
-form.spt <- medRent ~ 1 + idqtr +
+form.spt <- med1B ~ 1 + Qtr +
   f(idtract, model = "bym", #ICAR spatial RE for tract neighbors + IID RE for tract
-    graph = "R:/Project/seattle_rental_market/report/spatial_epi/kctract.graph") +
-  f(idtractqtr, model="iid") #exchangeable RE for period
+    scale.model = T,
+    graph = "R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph") +
+  f(idtractqtr, model="iid") + #exchangeable RE for period
+  f(idqtr, model = "iid") 
 
 m.spt <- inla(form.spt, 
-              family = "normal", 
-              data = kc_df,
+              family = "lognormal", 
+              data = sea_df,
               control.predictor = list(compute = TRUE),
               control.compute = list(dic = TRUE, waic = TRUE))
 
 summary(m.spt)
-kc_df$spt_Med <- m.spt$summary.linear.predictor[, "0.5quant"]
-kc_df$spt_SD <- m.spt$summary.linear.predictor[, "sd"]
-kc_df$spt_postWidth <- m.spt$summary.linear.predictor[, "0.975quant"] - m.spt$summary.linear.predictor[,"0.025quant"]
-kc_df$spt_Eff <- m.spt$summary.random$idtract[kc_df$idtract, "0.5quant"] 
+sea_df$spt_Med <- m.spt$summary.linear.predictor[, "0.5quant"]
+sea_df$spt_SD <- m.spt$summary.linear.predictor[, "sd"]
+sea_df$spt_postWidth <- m.spt$summary.linear.predictor[, "0.975quant"] - m.spt$summary.linear.predictor[,"0.025quant"]
+sea_df$spt_Eff <- m.spt$summary.random$idtract[sea_df$idtract, "0.5quant"] 
 
-#does not improve ICs much, but might still perform better for forecasting
+#overfitting? too much bumpiness qtr-to-qtr
 
 #### Maps of Model Output ------------------------------------------------------------------
 
-#kc_df <- kc_df %>%
-#  mutate_at(.vars = vars(matches("_Med")),
-#            .funs = exp) %>%
-#  mutate_at(.vars = vars(matches("_SD")),
-#            .funs = exp) 
+sea_df <- sea_df %>%
+  mutate_at(.vars = vars(matches("_Med")),
+            .funs = exp) %>%
+  mutate_at(.vars = vars(matches("_SD")),
+            .funs = exp) %>%
+  group_by(GISJOIN) %>% 
+  arrange(GISJOIN, listingQtr) %>%
+  mutate(spt_traj = spt_Med - lag(spt_Med, 4)) %>%
+  ungroup %>%
+  group_by(GISJOIN) %>%
+  mutate(spt_traj = sum(spt_traj, na.rm=T))
 
-kc_shp@data$id <- rownames(kc_shp@data)
-kc_shp@data <- left_join(kc_shp@data, kc_df)
-kc_f <- fortify(kc_shp)
-kc_f <- inner_join(kc_f, kc_shp@data,"id")
+sea_df
+
+sea_shp@data$id <- rownames(sea_shp@data)
+sea_shp@data <- left_join(sea_shp@data, sea_df)
+sea_f <- fortify(sea_shp)
+sea_f <- inner_join(sea_f, sea_shp@data,"id")
 
 rmse <- function(error){sqrt(mean(error^2))}
 mae <- function(error){mean(abs(error))}
 
 #table of fit statistics
-fit_stats <- kc_df %>%
+fit_stats <- sea_df %>%
   mutate(train_test = ifelse(listingQtr == "2018 Q2", "Test", "Training")) %>%
   mutate(int_err = actualRent - int_Med,
          ns_err = actualRent - ns_Med,
-         nst_err = actualRent - nst_Med,
          nsar1_err = actualRent - nsar1_Med,
          bym_err = actualRent - bym_Med,
          spt_err = actualRent - spt_Med) %>% 
@@ -318,8 +316,6 @@ fit_stats <- kc_df %>%
             int_mae = mae(int_err[!is.na(int_err)]),
             ns_rmse = rmse(ns_err[!is.na(ns_err)]),
             ns_mae = mae(ns_err[!is.na(ns_err)]),
-            nst_rmse = rmse(nst_err[!is.na(nst_err)]),
-            nst_mae = mae(nst_err[!is.na(nst_err)]),
             nsar1_rmse = rmse(nsar1_err[!is.na(nsar1_err)]),
             nsar1_mae = mae(nsar1_err[!is.na(nsar1_err)]),
             bym_rmse = rmse(bym_err[!is.na(bym_err)]),
@@ -331,8 +327,8 @@ fit_stats <- kc_df %>%
 #aspatial graphics
 
 #scatterplots
-ggplot(kc_df, aes(x = actualRent, y = int_Med)) +
-  facet_grid(beds ~ listingQtr) +
+ggplot(sea_df, aes(x = actualRent, y = int_Med)) +
+  facet_grid(. ~ listingQtr) +
   geom_point() +
   geom_abline(slope = 1, intercept = 0) +
   coord_cartesian() +
@@ -345,8 +341,8 @@ ggplot(kc_df, aes(x = actualRent, y = int_Med)) +
   ggsave(filename = "./output/avp_fixedint.pdf",
          width = 10, height = 8)
 
-ggplot(kc_df, aes(x = actualRent, y = ns_Med)) +
-  facet_grid(beds ~ listingQtr) +
+ggplot(sea_df, aes(x = actualRent, y = ns_Med)) +
+  facet_grid(. ~ listingQtr) +
   geom_point() +
   geom_abline(slope = 1, intercept = 0) +
   coord_cartesian()  +
@@ -354,27 +350,13 @@ ggplot(kc_df, aes(x = actualRent, y = ns_Med)) +
   ylab("Predicted Rent\n") +
   scale_x_continuous(labels = scales::dollar) +
   scale_y_continuous(labels = scales::dollar) +
-  labs(title = "Actual v. Predicted for Non-Spatial RE model",
-       subtitle = TeX("$\\hat{y}_{i, t, b} = \\alpha_{b} + \\epsilon_{i}$")) +
+  labs(title = "Actual v. Predicted for Non-Spatial RE model with seasonal dummy",
+       subtitle = TeX("$\\hat{y}_{i, t} = \\alpha_{b} + \\epsilon_{i}$")) +
   ggsave(filename = "./output/avp_nsre.pdf",
          width = 10, height = 8)
 
-ggplot(kc_df, aes(x = actualRent, y = nst_Med)) +
-  facet_grid(beds ~ listingQtr) +
-  geom_point() +
-  geom_abline(slope = 1, intercept = 0) +
-  coord_cartesian() +
-  xlab("\nObserved Rent") +
-  ylab("Predicted Rent\n") +
-  scale_x_continuous(labels = scales::dollar) +
-  scale_y_continuous(labels = scales::dollar) +
-  labs(title = "Actual v. Predicted for Non-Spatial RE with Seasonal dummy model",
-       subtitle = TeX("$\\hat{y}_{i, t, b} = \\alpha_{b} + \\Beta_{1}*Qtr + \\epsilon_{i}$")) +
-  ggsave(filename = "./output/avp_nsre.pdf",
-         width = 10, height = 8)
-
-ggplot(kc_df, aes(x = actualRent, y = nsar1_Med)) +
-  facet_grid(beds ~ listingQtr) +
+ggplot(sea_df, aes(x = actualRent, y = nsar1_Med)) +
+  facet_grid(. ~ listingQtr) +
   geom_point() +
   geom_abline(slope = 1, intercept = 0) +
   coord_cartesian() +
@@ -383,12 +365,12 @@ ggplot(kc_df, aes(x = actualRent, y = nsar1_Med)) +
   scale_x_continuous(labels = scales::dollar) +
   scale_y_continuous(labels = scales::dollar) +
   labs(title = "Actual v. Predicted for Non-Spatial RE, AR(1) model",
-       subtitle = TeX("$\\hat{y}_{t, beds, tract} = \\alpha_{b} + \\epsilon_{i} + \\epsilon_{t} + \\zeta_{t-1}$")) +
+       subtitle = TeX("$\\hat{y}_{i, t} = \\epsilon_{i} + \\epsilon_{t} + \\zeta_{t-1}$")) +
   ggsave(filename = "./output/avp_nsar1.pdf",
          width = 10, height = 8)
 
-ggplot(kc_df, aes(x = actualRent, y = bym_Med)) +
-  facet_grid(beds ~ listingQtr) +
+ggplot(sea_df, aes(x = actualRent, y = bym_Med)) +
+  facet_grid( ~ listingQtr) +
   geom_point() +
   geom_abline(slope = 1, intercept = 0) +
   coord_cartesian() +
@@ -396,97 +378,140 @@ ggplot(kc_df, aes(x = actualRent, y = bym_Med)) +
   ylab("Predicted Rent\n") +
   scale_x_continuous(labels = scales::dollar) +
   scale_y_continuous(labels = scales::dollar) +
-  labs(title = "Actual v. Predicted for ICAR Spatial RE with Seasonal dummy model",
-       subtitle = TeX("$\\hat{y}_{qtr, beds, tract} = \\alpha_{beds} + \\Beta_{1}*qtr + \\epsilon_{tract}$")) +
-  ggsave(filename = "./output/avp_nsre.pdf",
+  labs(title = "Actual v. Predicted for ICAR Spatial RE model with Seasonal dummies",
+       subtitle = TeX("$\\hat{y}_{i, t} = \\Beta_{1}*qtr + \\epsilon_{i}$ + S_i")) +
+  ggsave(filename = "./output/avp_bym.pdf",
+         width = 10, height = 8)
+
+ggplot(sea_df, aes(x = actualRent, y = spt_Med)) +
+  facet_grid( ~ listingQtr) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0) +
+  coord_cartesian() +
+  xlab("\nObserved Rent") +
+  ylab("Predicted Rent\n") +
+  scale_x_continuous(labels = scales::dollar) +
+  scale_y_continuous(labels = scales::dollar) +
+  labs(title = "Actual v. Predicted for Spatiotemporal RE model with seasonal dummies",
+       subtitle = TeX("$\\hat{y}_{i, t} = \\Beta_{1}*qtr + \\epsilon_{tract}$")) +
+  ggsave(filename = "./output/avp_spt.pdf",
          width = 10, height = 8)
 
 #lineplot
-ggplot(kc_df, 
-       aes(x = listingQtr, y = exp(bym_Med), group = GISJOIN, color = listingQtr == "2018 Q2")) +
-  facet_grid(~ beds) +
+ggplot(sea_df, 
+       aes(x = listingQtr, y = bym_Med, group = GISJOIN, color = listingQtr == "2018 Q2")) +
   geom_point() +
   geom_line() +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45)) +
   scale_color_manual(values = c("black", "blue")) +
   scale_y_continuous(labels = scales::dollar) +
-  labs(color = "Forecast?") +
-  ggsave(filename = "./output/bedsLineplot.pdf",
+  xlab("\nQuarter") +
+  ylab("Median Prediction\n") +
+  labs(title = "ICAR Spatial RE model lineplot", color = "Forecast?") +
+  ggsave(filename = "./output/bedsLineplot_bym.pdf",
+         width = 10, height = 10, dpi = 300)
+
+#lineplot
+ggplot(sea_df, 
+       aes(x = listingQtr, y = spt_Med, group = GISJOIN, color = listingQtr == "2018 Q2")) +
+  facet_wrap(~ spt_traj > 0) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45)) +
+  scale_color_manual(values = c("black", "blue")) +
+  scale_y_continuous(labels = scales::dollar) +
+  xlab("\nQuarter") +
+  ylab("Median Prediction\n") +
+  labs(title = "Spatiotemporal RE model lineplot", color = "Forecast?") +
+  ggsave(filename = "./output/bedsLineplot_spt.pdf",
          width = 10, height = 10, dpi = 300)
 
 #maps
 library(gridExtra)
 
 #observed and smoothed rent during test periods
-obs <- ggplot(kc_f %>% filter(beds == "1 Bedroom", listingQtr == "2018 Q2"), 
+obs <- ggplot(sea_f %>% filter(listingQtr == "2018 Q2"), 
        aes(x = long, y = lat, group = group, fill = actualRent)) +
-  geom_polygon() +
-  #facet_grid(~ listingQtr) +
-  scale_fill_viridis_c(limits = c(900, 2500), labels = scales::dollar) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(limits = c(750, 2500), labels = scales::dollar) +
   coord_quickmap() +
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank(),
         panel.background = element_blank()) +
-  labs(title = "Observed One-Bedroom Median Rent",
+  labs(title = "Observed Median Rent",
        fill = "Observed")
 
-smoothed <- ggplot(kc_f %>% filter(beds == "1 Bedroom", listingQtr == "2018 Q2"), 
-              aes(x = long, y = lat, group = group, fill = ns_Med)) +
-  geom_polygon() +
-  #facet_grid(~ listingQtr) +
-  scale_fill_viridis_c(limits = c(900, 2500), labels = scales::dollar) +
+smoothed <- ggplot(sea_f %>% filter(listingQtr == "2018 Q2"), 
+              aes(x = long, y = lat, group = group, fill = bym_Med)) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(limits = c(750, 2500), labels = scales::dollar) +
   coord_quickmap() +
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank(),
         panel.background = element_blank()) +
-  labs(title = "Smoothed One-Bedroom Median Rent",
-       fill = "Smoothed")
-
-combined <- grid.arrange(obs, smoothed, nrow = 1)
-
-ggsave(combined,
-       filename = "./output/map_avp_ns_1B.pdf",
-       width = 12, height = 5, dpi = 300)
-
-#observed and smoothed rent during test periods
-smoothed <- ggplot(kc_f %>% filter(beds == "1 Bedroom", listingQtr == "2018 Q2"), 
-                   aes(x = long, y = lat, group = group, fill = bym_Med)) +
-  geom_polygon() +
-  #facet_grid(~ listingQtr) +
-  scale_fill_viridis_c(limits = c(900, 2500), labels = scales::dollar) +
-  coord_quickmap() +
-  theme(axis.title = element_blank(),
-        axis.text = element_blank(),
-        axis.ticks = element_blank(),
-        panel.background = element_blank()) +
-  labs(title = "Smoothed One-Bedroom Median Rent",
+  labs(title = "Spatially Smoothed Median Rent",
        fill = "Smoothed")
 
 combined <- grid.arrange(obs, smoothed, nrow = 1)
 
 ggsave(combined,
        filename = "./output/map_avp_bym_1B.pdf",
-       width = 12, height = 5, dpi = 300)
+       width = 8, height = 6, dpi = 300)
 
-# actual vs predicted difference
-ggplot(kc_f %>% filter(listingQtr != "2018 Q2"), 
-       aes(x = long, y = lat, group = group, fill = medRent - bym_Med)) +
-  geom_polygon() +
-  facet_grid(beds ~ listingQtr) +
-  scale_fill_gradient2() +
+#observed and smoothed rent during test periods
+s_smoothed <- ggplot(sea_f %>% filter(listingQtr == "2018 Q2"), 
+                   aes(x = long, y = lat, group = group, fill = spt_Med)) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(limits = c(750, 2500), labels = scales::dollar) +
   coord_quickmap() +
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank(),
-        panel.background = element_blank())
+        panel.background = element_blank()) +
+  labs(title = "ST Smoothed One-Bedroom Median Rent",
+       fill = "Smoothed")
 
+combined_test <- grid.arrange(obs, s_smoothed, nrow = 1)
 
+ggsave(combined_test,
+       filename = "./output/map_avp_spt_1B.pdf",
+       width = 8, height = 6, dpi = 300)
 
+# actual vs predicted difference
+smoothed <- ggplot(sea_f, 
+                   aes(x = long, y = lat, group = group, fill = bym_Med)) +
+  facet_grid(~ listingQtr) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(limits = c(750, 2500), labels = scales::dollar) +
+  coord_quickmap() +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  labs(title = "Spatially Smoothed 1B Median Rent",
+       fill = "Smoothed")
 
+st_smoothed <- ggplot(sea_f, 
+                      aes(x = long, y = lat, group = group, fill = spt_Med)) +
+  facet_grid(~ listingQtr) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(limits = c(750, 2500), labels = scales::dollar) +
+  coord_quickmap() +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  labs(title = "Spatiotemporal Smoothed 1B Median Rent",
+       fill = "Smoothed")
 
+combined_train <- grid.arrange(smoothed, st_smoothed, nrow = 2)
 
+ggsave(combined_train,
+       filename = "./output/map_bym_spt_1B.pdf",
+       width = 11, height = 8, dpi = 300)
 
 
