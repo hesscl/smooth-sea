@@ -359,8 +359,9 @@ Column
 ### Observed vs. Smoothed Rent Estimates
 
 ```{r index.maps, echo=F}
-smoothed <- ggplot(sea_f %>% filter(listingQtr == "2018 Q2"), 
-                   aes(x = long, y = lat, group = group, fill = bym_Med, label = GISJOIN)) +
+
+smoothed <- ggplot(sea_f, 
+                   aes(x = long, y = lat, group = group, fill = bym_Med, label = GISJOIN, frame = listingQtr)) +
   #facet_grid(~ listingQtr) +
   geom_polygon(color = "grey85", lwd = .05) +
   scale_fill_viridis_c(limits = c(750, 2500), labels = scales::dollar) +
