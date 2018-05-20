@@ -47,7 +47,7 @@ if(file.exists("../data/cl/craigslistDB.sqlite")){
     dplyr::select(listingDate, GEOID10, GISJOIN, seattle, matchAddress, matchType, cleanBeds, cleanRent, cleanSqft) %>% #SELECT these columns
     mutate(listingDate = as.Date(listingDate),
            listingQtr = as.yearqtr(listingDate)) %>%
-    filter(cleanBeds %in% c(0, 1, 2, 3)) %>%
+    filter(cleanBeds %in% c(0, 1, 2, 3), listingQtr >= "2017 Q2") %>%
     group_by(GEOID10, GISJOIN, listingQtr) %>% #group listings by tract, qtr within tract
     summarize(nListings = n(),
               n1B = sum(cleanBeds == 1),
@@ -72,72 +72,36 @@ if(file.exists("../data/cl/craigslistDB.sqlite")){
 
 #### A. construct panel (some missingness) ------------------------------------
 
+#ensure order of census df matches shapefile
 census <- census[match(sea_shp@data$GISJOIN, census$GISJOIN),]
 
+#clean a few fields we might use
 census <- census %>%
   mutate(nHU = AF7PE001,
          pOwnoccHU = AF7PE002/AF7PE001,
          medHUVal = AF9LE001)
 
-### Training periods
+#store NULL object to bind iterated dfs into
+panel <- NULL
 
-#studios
-Q2_2017 <- tract %>%
-  filter(listingQtr == "2017 Q2") %>%
-  right_join(census) %>%
-  ungroup %>%
-  mutate(listingQtr = "2017 Q2",
-         Qtr = "Q2",
-         actualRent = med1B)
+#for each unique quarter in the CL data
+for(i in unique(as.character(tract$listingQtr))){
+  
+  period <- tract %>% #start pipe with tract, end with period
+    mutate(listingQtr = factor(listingQtr, ordered = T)) %>% #make factor
+    filter(listingQtr == i) %>% #filter to qtr i
+    right_join(census) %>% #right join to census, allows missingness
+    ungroup() %>% #remove grouping by tract
+    mutate(listingQtr = i, #listingQtr == current iteration
+           Qtr = gsub(pattern = "Q\\d", replacement = "", x = listingQtr), #subset to QX
+           actualRent = med1B) #actual for actual versus predicted
+  panel <- bind_rows(panel, period) #append to panel object
+}
 
-
-Q3_2017 <- tract %>%
-  filter(listingQtr == "2017 Q3") %>%
-  right_join(census) %>%
-  ungroup %>%
-  mutate(listingQtr = "2017 Q3",
-         Qtr = "Q3",
-         actualRent = med1B)
-
-
-Q4_2017 <- tract %>%
-  filter(listingQtr == "2017 Q4") %>%
-  right_join(census) %>%
-  ungroup %>%
-  mutate(listingQtr = "2017 Q4",
-         Qtr = "Q4",
-         actualRent = med1B)
-
-
-Q1_2018 <- tract %>%
-  filter(listingQtr == "2018 Q1") %>%
-  right_join(census) %>%
-  ungroup %>%
-  mutate(listingQtr = "2018 Q1",
-         Qtr = "Q1",
-         actualRent = med1B)
-
-
-### Forecast/test period
-
-Q2_2018 <- tract %>%
-  filter(listingQtr == "2018 Q2") %>%
-  right_join(census) %>%
-  ungroup %>%
-  mutate(listingQtr = "2018 Q2",
-         Qtr = "Q2",
-         actualRent = med1B,
-         medRent = NA)
-Q2_2018 <- Q2_2018[match(sea_shp@data$GISJOIN, Q2_2018$GISJOIN),]
-
-
-sea_df <- bind_rows(Q2_2017, Q3_2017, Q4_2017, Q1_2018, Q2_2018)
-sea_df$listingQtr <- as.yearqtr(sea_df$listingQtr)
-
-sea_df <- sea_df %>% 
-  dplyr::select(-GEOID10) %>%
+sea_df <- panel %>% #set to NA for INLA to forecast
+  mutate(med1B = ifelse(listingQtr == as.yearqtr(Sys.Date()), NA, med1B))%>%
   dplyr::select(GISJOIN, listingQtr, Qtr, medRent, med1B, lagRent, actualRent, nHU, 
-                pOwnoccHU, medHUVal, pGT2B)
+                pOwnoccHU, medHUVal, pGT2B) 
 
 
 #### ACF for panel ------------------------------------------------------------
@@ -160,7 +124,7 @@ for(i in unique(sea_df$GISJOIN)){
 #weakened by a noisey quarter
 
 
-#### F. INLA Models of CL Rent ------------------------------------------------
+#### B. INLA Models of CL Rent ------------------------------------------------
 
 library(INLA)
 
@@ -170,26 +134,29 @@ sea_shp <- readOGR(dsn = "R:/Project/seattle_rental_market/data/geo/sea_tract_20
                    GDAL1_integer64_policy = TRUE,
                    stringsAsFactors = F)
 
+#compute centroid for map of tract numbers
 cens <- gCentroid(sea_shp, byid = T)
 cens <- data.frame(long = cens@coords[,1],
                    lat = cens@coords[,2])
 cens <- cens %>% mutate(row = row_number())
 sea_ff <- fortify(sea_shp)
 
+#plot seattle tracts with tract number labels
 ggplot(sea_ff, aes(x = long, y = lat, group = group)) + 
   geom_polygon(fill = "grey90", color = "white") +
   geom_text(data = cens, aes(x  = long, y = lat, label = row, group = row))
 
+#create adjacency matrix from shapefile
 sea_adj <- poly2nb(sea_shp)
+
+#create neighbor file that INLA takes for hyperparameter args
 nb2INLA("R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph", sea_adj)
-sea_df$idtract <- rep(1:134, 5)
+sea_df$idtract <- rep(1:134, 5) #a tract ID (nb: panel must be ordered tract)
 sea_df$idtract1 <- rep(1:134, 5)
-sea_df$idqtr <- as.numeric(sea_df$listingQtr)
+sea_df$idqtr <- factor(sea_df$listingQtr, ordered = T)
 sea_df$idqtr1 <- sea_df$idqtr
 sea_df$idtractqtr <- paste(sea_df$idtract, sea_df$idqtr)
 
-
-#Seattle median rent models -----------------------------------------------
 
 #fixed effect for qtr only
 form.int <- med1B ~ 1 + Qtr
