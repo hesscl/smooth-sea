@@ -42,23 +42,24 @@ if(file.exists("../data/cl/craigslistDB.sqlite")){
   #compute tract aggregates for CL listing count
   tract <- cl %>%
     collect %>% #bring db query into memory
-    filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), GISJOIN %in% sea_shp@data$GISJOIN) %>% #only listings with valid Bed/Rent
-    distinct(cleanBeds, cleanRent, cleanSqft, matchAddress, matchAddress2, .keep_all = T) %>% #dedupe to unique address-bed-rent combos
-    dplyr::select(listingDate, GEOID10, GISJOIN, seattle, matchAddress, matchType, cleanBeds, cleanRent, cleanSqft) %>% #SELECT these columns
+    filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), 
+           GISJOIN %in% sea_shp@data$GISJOIN) %>% #only listings with valid Bed/Rent, seattle tracts
+    distinct(cleanBeds, cleanRent, cleanSqft, matchAddress, 
+             matchAddress2, .keep_all = T) %>% #dedupe to unique address-bed-rent combos
+    dplyr::select(listingDate, GISJOIN, seattle, matchAddress, matchType, 
+                  cleanBeds, cleanRent, cleanSqft) %>% #SELECT these columns
     mutate(listingDate = as.Date(listingDate),
            listingQtr = as.yearqtr(listingDate)) %>%
     filter(cleanBeds %in% c(0, 1, 2, 3), listingQtr >= "2017 Q2") %>%
-    group_by(GEOID10, GISJOIN, listingQtr) %>% #group listings by tract, qtr within tract
+    group_by(GISJOIN, listingQtr) %>% #group listings by tract, qtr within tract
     summarize(nListings = n(),
               n1B = sum(cleanBeds == 1),
-              nGT2B = sum(cleanBeds > 2),
               medRent = median(cleanRent),
               med0B = median(cleanRent[cleanBeds==0]),
               med1B = median(cleanRent[cleanBeds==1]),
               med2B = median(cleanRent[cleanBeds==2]),
               med3B = median(cleanRent[cleanBeds==3]),
               lagRent = lag(cleanRent)) %>% #create tract aggregates
-    mutate(pGT2B = nGT2B/nListings) %>%
     ungroup %>%
     arrange(GISJOIN, listingQtr)
   dbDisconnect(DB)
@@ -99,9 +100,13 @@ for(i in unique(as.character(tract$listingQtr))){
 }
 
 sea_df <- panel %>% #set to NA for INLA to forecast
-  mutate(med1B = ifelse(listingQtr == as.yearqtr(Sys.Date()), NA, med1B))%>%
-  dplyr::select(GISJOIN, listingQtr, Qtr, medRent, med1B, lagRent, actualRent, nHU, 
-                pOwnoccHU, medHUVal, pGT2B) 
+  mutate(med1B = ifelse(listingQtr == as.yearqtr(Sys.Date()), NA, med1B),
+         med1B = ifelse(n1B < 5, NA, med1B),
+         actualRent = med1B)%>%
+  dplyr::select(GISJOIN, listingQtr, Qtr, medRent, med1B, lagRent, actualRent, nHU,
+                n1B, nListings, pOwnoccHU, medHUVal, idtract) %>%
+  arrange(listingQtr, GISJOIN) %>%
+  mutate(p1B = n1B/nListings)
 
 
 #### ACF for panel ------------------------------------------------------------
@@ -151,21 +156,19 @@ sea_adj <- poly2nb(sea_shp)
 
 #create neighbor file that INLA takes for hyperparameter args
 nb2INLA("R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph", sea_adj)
-sea_df$idtract <- rep(1:134, 5) #a tract ID (nb: panel must be ordered tract)
-sea_df$idtract1 <- rep(1:134, 5)
 sea_df$idqtr <- factor(sea_df$listingQtr, ordered = T)
 sea_df$idqtr1 <- sea_df$idqtr
 sea_df$idtractqtr <- paste(sea_df$idtract, sea_df$idqtr)
-
+sea_df$idtract1 <- sea_df$idtract
 
 #fixed effect for qtr only
-form.int <- med1B ~ 1 + Qtr
+form.int <- log(med1B) ~ 1 + Qtr 
 
 m.int <- inla(form.int, 
-             family = "lognormal", 
-             data = sea_df,
-             control.predictor = list(compute = TRUE),
-             control.compute = list(dic = TRUE, waic = TRUE))
+              family = "normal", 
+              data = sea_df,
+              control.predictor = list(compute = TRUE),
+              control.compute = list(dic = TRUE, waic = TRUE))
 
 summary(m.int)
 sea_df$int_Med <- m.int$summary.linear.predictor[, "0.5quant"]
@@ -174,14 +177,14 @@ sea_df$int_postWidth <- m.int$summary.linear.predictor[, "0.975quant"] - m.int$s
 sea_df$int_Eff <- m.int$summary.random$idtract[sea_df$idtract, "0.5quant"] 
 
 #fixed qtr + iid tract random effect
-form.ns <- med1B ~ 1 + Qtr + 
-   f(idtract, model = "iid")
+form.ns <- log(med1B) ~ 1 + Qtr +
+  f(idtract, model = "iid")
 
 m.ns <- inla(form.ns, 
-              family = "lognormal", 
-              data = sea_df,
-              control.predictor = list(compute = TRUE),
-              control.compute = list(dic = TRUE, waic = TRUE))
+             family = "normal", 
+             data = sea_df,
+             control.predictor = list(compute = TRUE),
+             control.compute = list(dic = TRUE, waic = TRUE))
 
 summary(m.ns)
 sea_df$ns_Med <- m.ns$summary.linear.predictor[, "0.5quant"]
@@ -190,15 +193,15 @@ sea_df$ns_postWidth <- m.ns$summary.linear.predictor[, "0.975quant"] - m.ns$summ
 sea_df$ns_Eff <- m.ns$summary.random$idtract[sea_df$idtract, "0.5quant"] 
 
 #IID tract random effect + AR(1) process
-form.nsar1 <- med1B ~ 1 +
+form.nsar1 <- log(med1B) ~ 1 +
   f(idtract, model = "iid") +
   f(idqtr, model = "ar1") + f(idqtr1, model = "iid")
 
 m.nsar1 <- inla(form.nsar1, 
-               family = "lognormal", 
-               data = sea_df,
-               control.predictor = list(compute = TRUE),
-               control.compute = list(dic = TRUE, waic = TRUE))
+                family = "normal", 
+                data = sea_df,
+                control.predictor = list(compute = TRUE),
+                control.compute = list(dic = TRUE, waic = TRUE))
 
 summary(m.nsar1) #NB: does not improve fit to use random effect time specification, using fixed effects
 sea_df$nsar1_Med <- m.nsar1$summary.linear.predictor[, "0.5quant"]
@@ -207,16 +210,16 @@ sea_df$nsar1_postWidth <- m.nsar1$summary.linear.predictor[, "0.975quant"] - m.n
 sea_df$nsar1_Eff <- m.nsar1$summary.random$idtract[sea_df$idtract, "0.5quant"] 
 
 #spatial random effect model (BYM 1991) with seasonal dummies
-form.bym <- med1B ~ 1 + Qtr +
+form.bym <- log(med1B) ~ 1 + Qtr +
   f(idtract, model = "bym", #ICAR spatial RE for tract neighbors + IID RE for tract
     scale.model = T,
     graph = "R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph")
 
 m.bym <- inla(form.bym, 
-             family = "lognormal", 
-             data = sea_df,
-             control.predictor = list(compute = TRUE),
-             control.compute = list(dic = TRUE, waic = TRUE))
+              family = "normal", 
+              data = sea_df,
+              control.predictor = list(compute = TRUE),
+              control.compute = list(dic = TRUE, waic = TRUE))
 
 summary(m.bym)
 sea_df$bym_Med <- m.bym$summary.linear.predictor[, "0.5quant"]
@@ -225,7 +228,7 @@ sea_df$bym_postWidth <- m.bym$summary.linear.predictor[, "0.975quant"] - m.bym$s
 sea_df$bym_Eff <- m.bym$summary.random$idtract[sea_df$idtract, "0.5quant"] 
 
 #spatio-temporal smoothing model with linear space-time interaction (Bernadelli 1995)
-form.spt <- med1B ~ 1 + Qtr +
+form.spt <- log(med1B) ~ 1 + Qtr +
   f(idtract, model = "bym", #ICAR spatial RE for tract neighbors + IID RE for tract
     scale.model = T,
     graph = "R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph") +
@@ -233,7 +236,7 @@ form.spt <- med1B ~ 1 + Qtr +
   f(idqtr, model = "iid") 
 
 m.spt <- inla(form.spt, 
-              family = "lognormal", 
+              family = "normal", 
               data = sea_df,
               control.predictor = list(compute = TRUE),
               control.compute = list(dic = TRUE, waic = TRUE))
