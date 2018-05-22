@@ -426,8 +426,9 @@ Column {.tabset}
 ### Observed
 
 ```{r spat.series.actual, echo=F}
-map_panel_obs <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = actualRent, frame = listingQtr)) +
-  geom_polygon(color = "grey85", lwd = .05) +
+map_panel_obs <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = actualRent)) +
+  facet_grid(~ listingQtr) +
+  geom_polygon(color = "grey85", lwd = .05, ) +
   scale_fill_viridis_c(labels = scales::dollar, na.value = "grey80") +
   coord_quickmap() +
   theme(axis.title = element_blank(),
@@ -437,13 +438,31 @@ map_panel_obs <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = actu
   labs(fill = "Median<br>1B Rent")
   
 ggplotly(map_panel_obs) %>%
-  layout(autosize = T) %>%
-  animation_opts(transition = 0, redraw = FALSE)
+  layout(autosize = T)
 ```
+
+### Spatial RE 
+
+```{r spat.series.bym, echo=F}
+map_panel_bym <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = bym_Med, frame = listingQtr)) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(labels = scales::dollar, na.value = "grey80") +
+  coord_quickmap() +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  labs(fill = "Median<br>1B Rent")
+  
+ggplotly(map_panel_bym) %>%
+  layout(autosize = T) %>%
+  animation_opts(1000, transition = 0, redraw = FALSE)
+```
+
 
 ### Spatiotemporal AR(1) RE 
 
-```{r spat.series.nsar, echo=F}
+```{r spat.series.spt, echo=F}
 map_panel_spt <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = spt_Med, frame = listingQtr)) +
   geom_polygon(color = "grey85", lwd = .05) +
   scale_fill_viridis_c(labels = scales::dollar, na.value = "grey80") +
@@ -456,7 +475,7 @@ map_panel_spt <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = spt_
   
 ggplotly(map_panel_spt) %>%
   layout(autosize = T) %>%
-  animation_opts(transition = 0, redraw = FALSE)
+  animation_opts(1000, transition = 0, redraw = FALSE)
 ```
 
 
