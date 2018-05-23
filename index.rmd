@@ -39,7 +39,7 @@ library(crosstalk)
 census <- read_csv(file = "./input/acsExtract.csv")
 
 #read in tract shapefiles for seattle
-sea_shp <- readOGR(dsn = "R:/Project/seattle_rental_market/data/geo/sea_tract_2010/sea_tract_2010.shp",
+sea_shp <- readOGR(dsn = "./input/sea_tract_2010/sea_tract_2010.shp",
                   layer = "sea_tract_2010",
                   GDAL1_integer64_policy = TRUE,
                   stringsAsFactors = F) 
@@ -124,7 +124,7 @@ library(INLA)
 sea_adj <- poly2nb(sea_shp)
 
 #create neighbor file that INLA takes for hyperparameter args
-nb2INLA("R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph", sea_adj)
+nb2INLA("./output/seatract.graph", sea_adj)
 sea_df$idqtr <- factor(sea_df$listingQtr, ordered = T)
 sea_df$idqtr1 <- sea_df$idqtr
 sea_df$idtractqtr <- paste(sea_df$idtract, sea_df$idqtr)
@@ -182,7 +182,7 @@ sea_df$nsar1_Eff <- m.nsar1$summary.random$idqtr[sea_df$idqtr, "0.5quant"]
 form.bym <- log(med1B) ~ 1 + Qtr +
   f(idtract, model = "bym", #ICAR spatial RE for tract neighbors + IID RE for tract
     scale.model = T,
-    graph = "R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph")
+    graph = "./output/seatract.graph")
 
 m.bym <- inla(form.bym, 
              family = "normal", 
@@ -200,7 +200,7 @@ sea_df$bym_Eff <- m.bym$summary.random$idtract[sea_df$idtract, "0.5quant"]
 form.spt <- log(med1B) ~ 1 +
   f(idtract, model = "bym", #ICAR spatial RE for tract neighbors + IID RE for tract
     scale.model = T,
-    graph = "R:/Project/seattle_rental_market/report/spatial_epi/seatract.graph") +
+    graph = "./output/seatract.graph") +
   f(idqtr, model = "ar1") +
   f(idqtr1, model = "iid") +
   f(idtractqtr, model = "iid")
@@ -279,9 +279,9 @@ Column
 
 This website provides interactive results for the forecasting models explored in the paper _Estimating Neighborhood Asking Rents using Scraped Craigslist Rental Listings_. 
 
-The goal of this research is to a.) understand the temporal dynamics of rent estimates in Seattle and b.) forecast the current quarter's rent levels based off of the prior periods. Throughout the following analyses, the training data are `r min(sea_df$listingQtr)` up to the prior quarter (i.e. `r as.yearqtr(Sys.Date())-.25`). The test period is a forecast for the current period and includes comparison to the appropriate median rent estimates for data observed so far in this period.
+The goal of this research is to a.) understand the temporal dynamics of rent estimates in Seattle and b.) forecast the current quarter's rent levels based off of the prior periods. The focal series of models regress median one-bedroom rent asked values on different specifications of the panel's correlation structure (i.e. temporal and spatial). All of the candidate models are estimated with [integrated nested Laplace approximations](https://folk.ntnu.no/hrue/r-inla.org/papers/inla-rss.pdf) (INLA) using the default, weakly-informative priors for all model hyperparameters. Throughout the following analyses, the training data are `r min(sea_df$listingQtr)` up to the prior quarter (i.e. `r as.yearqtr(Sys.Date())-.25`). The test period is a forecast for the current period and includes comparison to the appropriate median rent estimates for data observed so far in this period.
 
-Most graphics include some level of interactivity, usually either hover-over tooltip information or a slider to control various views of the graphic. Clicking on cases will highlight data elements in most graphics, and double-clicking will reset the graphic. You can download the source code and data for this project from Github [here](https://github.com/hesscl/smooth-sea)
+Most graphics include some level of interactivity, usually either hover-over tooltip information or a slider to control various views of the graphic. Clicking on cases will highlight data elements in most graphics, and double-clicking will reset the graphic. You can download the source code and data for this project from Github [here](https://github.com/hesscl/smooth-sea).
 
 Contact Chris Hess at [hesscl@uw.edu](mailto://hesscl@uw.edu) for more information about this research.
 
@@ -293,10 +293,12 @@ _This page was last updated: `r Sys.Date()`_
 
 **Table of Contents**
 
-*  Distribution: density graphic to investigate the distribution of rents among Seattle neighborhoods for each quarter
-*  Panel Time-Series: line graphic to show the observed or modeled temporal structure
-*  Spatial Time-Series: series of maps to show observed change across time
-*  Model fit: tables of model root mean square error (RMSE), mean absolute error (MAE), and deviance information criterion (DIC) across training and test data
+Page                |  Description
+------------------- | ---------------------------------------------------------
+Distribution        | density graphic to investigate the distribution of rents among Seattle neighborhoods for each quarter
+Panel Time-Series   | line graphic to show the observed or modeled temporal structure
+Spatial Time-Series | series of maps to show observed change across time
+Model Fit           | tables of model root mean square error (RMSE), mean absolute error (MAE), and deviance information criterion (DIC) across training and test data
 
 
 Column
@@ -431,7 +433,7 @@ Column {.tabset}
 ```{r spat.series.actual, echo=F}
 map_panel_obs <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = actualRent)) +
   facet_grid(~ listingQtr) +
-  geom_polygon(color = "grey85", lwd = .05, ) +
+  geom_polygon(color = "grey85", lwd = .05) +
   scale_fill_viridis_c(labels = scales::dollar, na.value = "grey80") +
   coord_quickmap() +
   theme(axis.title = element_blank(),
@@ -442,6 +444,24 @@ map_panel_obs <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = actu
   
 ggplotly(map_panel_obs) %>%
   layout(autosize = T)
+```
+
+### Non-Spatial AR(1) 
+
+```{r spat.series.nsar1, echo=F}
+map_panel_nsar1 <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = nsar1_Med, frame = listingQtr)) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(labels = scales::dollar, na.value = "grey80") +
+  coord_quickmap() +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  labs(fill = "Median<br>1B Rent")
+  
+ggplotly(map_panel_nsar1) %>%
+  layout(autosize = T) %>%
+  animation_opts(1000, transition = 0, redraw = FALSE)
 ```
 
 ### Spatial RE 
@@ -485,36 +505,63 @@ ggplotly(map_panel_spt) %>%
 Model Fit
 =====================================
 
-Column 
+Column {.tabset}
 -------------------------------------
 
-### Model legend
+### Model Legend
 
-* int - Quarter fixed intercept
-* ns - Non-spatial tract random effect for each tract, quarter fixed intercept
-* nsar1 - Non-spatial tract random effect model, AR(1) random effect for quarter, i.i.d. random effect for quarter
-* bym - Spatial intrinsic conditional autoregressive (ICAR) tract random-effect with quarter fixed intercept
-* spt - Spatial intrinsic conditional autoregressive (ICAR) tract random-effect, AR(1) random effect for quarter, i.i.d. random effect for quarter and tract-quarter
+Model abbr.                   | Description
+----------------------------- | -----------------------------------------------
+**int**    | Quarter fixed intercept
+           | `r format(form.int, )`
+**ns**     | Non-spatial tract random effect for each tract, quarter fixed intercept
+           | `r format(form.ns)`
+**nsar1**  | Non-spatial tract random effect model, AR(1) random effect for quarter, i.i.d. random effect for quarter 
+           | `r format(form.nsar1)`
+**bym**    | Spatial intrinsic conditional autoregressive (ICAR) tract random-effect with quarter fixed intercept 
+           |  `r format(form.bym)`
+**spt**    | Spatial intrinsic conditional autoregressive (ICAR) tract random-effect, AR(1) random effect for quarter, i.i.d. random effect for quarter and tract-quarter
+           | `r format(form.spt)`
 
-### RMSE
+
+### Accuracy and Information Criteria
 
 ```{r, echo=F}
-knitr::kable(fit_stats %>% select(train_test, ends_with("rmse")))
+knitr::kable(fit_stats %>% dplyr::select(train_test, ends_with("rmse")))
 ```
 
-### MAE
+<br>
+<hr>
+<br>
 
 ```{r, echo=F}
-knitr::kable(fit_stats %>% select(train_test, ends_with("mae")))
+knitr::kable(fit_stats %>% dplyr::select(train_test, ends_with("mae")))
 ```
 
-### DIC
+<br>
+<hr>
+<br>
+
 ```{r, echo=F}
-knitr::kable(data.frame("int_DIC" = m.int$dic$dic,
+knitr::kable(data.frame("train_test" = "Training",
+                        "int_DIC" = m.int$dic$dic,
                         "ns_DIC" = m.ns$dic$dic,
                         "nsar1_DIC" = m.nsar1$dic$dic,
                         "bym_DIC" = m.bym$dic$dic,
                         "spt_DIC" = m.spt$dic$dic))
+```
+
+<br>
+<hr>
+<br>
+
+```{r, echo=F}
+knitr::kable(data.frame("train_test" = "Training",
+                        "int_WAIC" = m.int$waic$waic,
+                        "ns_WAIC" = m.ns$waic$waic,
+                        "nsar1_WAIC" = m.nsar1$waic$waic,
+                        "bym_WAIC" = m.bym$waic$waic,
+                        "spt_WAIC" = m.spt$waic$waic))
 ```
 
 
@@ -529,8 +576,8 @@ avp_scatter <- ggplot(sea_df, aes(x = actualRent, y = nsar1_Med, size = n1B, fra
   geom_abline(intercept = 0, slope = 1) +
   scale_x_continuous(labels = scales::dollar) +
   scale_y_continuous(labels = scales::dollar) +
-  xlab("Actual\n") +
-  ylab("\nPredicted") +
+  xlab("Actual") +
+  ylab("Predicted") +
   scale_size_area() +
   coord_equal() +
   theme_minimal()
@@ -549,8 +596,8 @@ avp_scatter <- ggplot(sea_df, aes(x = actualRent, y = bym_Med, size = n1B, frame
   geom_abline(intercept = 0, slope = 1) +
   scale_x_continuous(labels = scales::dollar) +
   scale_y_continuous(labels = scales::dollar) +
-  xlab("Actual\n") +
-  ylab("\nPredicted") +
+  xlab("Actual") +
+  ylab("Predicted") +
   scale_size_area() +
   coord_equal() +
   theme_minimal()
@@ -569,8 +616,8 @@ avp_scatter <- ggplot(sea_df, aes(x = actualRent, y = spt_Med, size = n1B, frame
   geom_abline(intercept = 0, slope = 1) +
   scale_x_continuous(labels = scales::dollar) +
   scale_y_continuous(labels = scales::dollar) +
-  xlab("Actual\n") +
-  ylab("\nPredicted") +
+  xlab("Actual") +
+  ylab("Predicted") +
   scale_size_area() +
   coord_equal() +
   theme_minimal()
