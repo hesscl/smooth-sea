@@ -38,6 +38,15 @@ library(crosstalk)
 #load ACS data extract (codebook in folder)
 census <- read_csv(file = "./input/acsExtract.csv")
 
+#load demo extract
+#demo <- read_csv(file = "./input/tractDemoSumStats.csv")
+
+#load culture extract
+#culture <- read_csv(file = "./input/tractCultureSumStats.csv")
+
+#load police report extract
+#police <- read_csv(file = "./input/tractPoliceReportSumStats.csv")
+
 #read in tract shapefiles for seattle
 sea_shp <- readOGR(dsn = "./input/sea_tract_2010/sea_tract_2010.shp",
                   layer = "sea_tract_2010",
@@ -108,11 +117,14 @@ for(i in unique(as.character(tract$listingQtr))){
   panel <- bind_rows(panel, period) #append to panel object
 }
 
+#panel <- left_join(panel, demo)
+#panel <- left_join(panel, culture)
+#panel <- left_join(panel, police)
+#panel <- left_join(panel, sea_shp@data)
+
 sea_df <- panel %>% #set to NA for INLA to forecast
   mutate(actualRent = med1B,
          med1B = ifelse(listingQtr == as.yearqtr(Sys.Date()), NA, med1B)) %>%
-  dplyr::select(GISJOIN, listingQtr, Qtr, medRent, med1B, lagRent, actualRent, nHU,
-                n1B, nListings, pOwnoccHU, medHUVal, idtract) %>%
   mutate(p1B = n1B/nListings) %>%
   arrange(listingQtr, GISJOIN)
 
@@ -129,6 +141,7 @@ sea_df$idqtr <- factor(sea_df$listingQtr, ordered = T)
 sea_df$idqtr1 <- sea_df$idqtr
 sea_df$idtractqtr <- paste(sea_df$idtract, sea_df$idqtr)
 sea_df$idtract1 <- sea_df$idtract
+sea_df$Qtr1 <- sea_df$Qtr
 
 #fixed effect for qtr only
 form.int <- log(med1B) ~ 1 + Qtr 
@@ -180,6 +193,7 @@ sea_df$nsar1_Eff <- m.nsar1$summary.random$idqtr[sea_df$idqtr, "0.5quant"]
 
 #spatial random effect model (BYM 1991) with seasonal dummies
 form.bym <- log(med1B) ~ 1 + Qtr +
+  f(idqtr, model = "iid") +
   f(idtract, model = "bym", #ICAR spatial RE for tract neighbors + IID RE for tract
     scale.model = T,
     graph = "./output/seatract.graph")
@@ -201,8 +215,7 @@ form.spt <- log(med1B) ~ 1 +
   f(idtract, model = "bym", #ICAR spatial RE for tract neighbors + IID RE for tract
     scale.model = T,
     graph = "./output/seatract.graph") +
-  f(idqtr, model = "ar1") +
-  f(idqtr1, model = "iid") +
+  f(idqtr, model = "ar", order = 1) +
   f(idtractqtr, model = "iid")
 
 m.spt <- inla(form.spt, 
@@ -235,8 +248,6 @@ sea_df <- sea_df %>%
   ungroup() %>%
   mutate(bym_cuts = cut(bym_Med, 6),
          spt_cuts = cut(spt_Med, 6))
-
-sea_df
 
 sea_shp@data$id <- rownames(sea_shp@data)
 sea_shp@data <- left_join(sea_shp@data, sea_df)
