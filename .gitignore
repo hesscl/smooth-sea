@@ -36,3 +36,5 @@ vignettes/*.pdf
 rsconnect/
 
 *socrata_key.txt
+etc/*.R
+etc/*.csv
