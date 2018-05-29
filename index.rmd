@@ -224,7 +224,8 @@ m.spt <- inla(form.spt,
               family = "normal", 
               data = sea_df,
               control.predictor = list(compute = TRUE),
-              control.compute = list(dic = TRUE, waic = TRUE))
+              control.compute = list(dic = TRUE, waic = TRUE),
+              control.inla = list(correct = TRUE, correct.factor = 10))
 
 summary(m.spt)
 sea_df$spt_Med <- m.spt$summary.linear.predictor[, "0.5quant"]
