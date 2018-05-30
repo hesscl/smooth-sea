@@ -328,13 +328,13 @@ obs <- sea_f %>%
   dplyr::select(GISJOIN, long, lat, group, rent, var, actualRent, spt_Med, NAMELSAD10, n1B)
 
 pred <- sea_f %>%
-  mutate(rent = spt_Med) %>%
+  mutate(rent = bym_Med) %>%
   filter(listingQtr == as.yearqtr(Sys.Date())) %>%
   mutate(var = paste0(as.yearqtr(Sys.Date()), " Forecast")) %>%
-  dplyr::select(GISJOIN, long, lat, group, rent, var, actualRent, spt_Med, NAMELSAD10, n1B)
+  dplyr::select(GISJOIN, long, lat, group, rent, var, actualRent, bym_Med, NAMELSAD10, n1B)
 
 comb <- bind_rows(obs, pred) %>%
-  mutate(tooltip = paste0(NAMELSAD10, "<br>", "Forecast: $", round(spt_Med), "<br>", "Qtr-to-Date: $", round(actualRent), "<br>", "N Qtr-to-Date: ", n1B))
+  mutate(tooltip = paste0(NAMELSAD10, "<br>", "Forecast: $", round(bym_Med), "<br>", "Qtr-to-Date: $", round(actualRent), "<br>", "N Qtr-to-Date: ", n1B))
 comb <- SharedData$new(comb, ~GISJOIN)
 
 avp_map <- ggplot(comb, aes(x = long, y = lat, group = group, fill = rent, label = tooltip)) +
@@ -527,7 +527,7 @@ Column {.tabset}
 Model abbr.                   | Description
 ----------------------------- | -----------------------------------------------
 **int**    | Quarter fixed intercept
-           | `r format(form.int, )`
+           | `r format(form.int)`
 **ns**     | Non-spatial tract random effect for each tract, quarter fixed intercept
            | `r format(form.ns)`
 **nsar1**  | Non-spatial tract random effect, AR(1) random effect for prior quarter, i.i.d random effect for current quarter
