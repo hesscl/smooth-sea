@@ -3,7 +3,8 @@ title: "Estimating Neighborhood Rents with Scraped Data"
 author: "Chris Hess"
 output: 
   html_document:
-      include:
+      includes:
+        in_header: header.html
         after_body: footer.html
 ---
 
@@ -15,9 +16,9 @@ This project is under construction and subject to change at any moment!
 
 ### Contents
 
-[Working paper on agreement between Seattle neighborhood rent indicators](./manuscript/index.html)
+[Working paper on estimating Seattle neighborhood rent indicators](./manuscript/index.html)
 
-[Forecasting based on models used in working paper](./dashboard/index.html)
+[`flexdashboard` for working paper's model diagnostics and forecasts](./dashboard/index.html)
 
 [GitHub Repository](https://github.com/hesscl/smooth-sea/)
 
