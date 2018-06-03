@@ -111,5 +111,5 @@ ggplot(sumRent, aes(x = moYr, y = Rent, group = dataSrc, color = dataSrc, shape 
   ylab("Median Rent\n") +
   labs(color = "Data Source",
        shape = "Data Source") +
-  ggsave(file = "./output/rent_lineplot.png",
+  ggsave(file = "../output/rent_lineplot.png",
          device = "png", width = 6, height = 4)

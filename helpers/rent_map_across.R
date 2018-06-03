@@ -148,5 +148,5 @@ ggplot(tract_f %>% filter(catBeds == "1 Bedroom"), aes(x = long, y = lat, group 
         legend.title = element_text(size = 14),
         legend.text = element_text(size = 12)) +
   labs(fill = "Asking Rent") +
-  ggsave(filename = "./output/rent_map_across_1B.png",
+  ggsave(filename = "../output/rent_map_across_1B.png",
          width = 8, height = 4, dpi = 300)

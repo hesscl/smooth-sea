@@ -27,10 +27,10 @@ coordinates(scatter_cl) <- cbind(scatter_cl$lng, scatter_cl$lat)
 
 #make sure shapefile has correct projection
 WGS.latlon <- CRS("+proj=longlat +datum=WGS84")
-tract2000 <- readOGR(dsn = "./input/sea_tract_2000/sea_tract_2000.shp",
+tract2000 <- readOGR(dsn = "../input/sea_tract_2000/sea_tract_2000.shp",
                      layer = "sea_tract_2000",
                      GDAL1_integer64_policy = TRUE,
-                     verbose = F,
+                     verbose = FALSE,
                      stringsAsFactors = F) 
 tract2000 <- spTransform(tract2000, WGS.latlon)
 proj4string(scatter_cl) <- WGS.latlon
@@ -75,5 +75,5 @@ ggplot(across2017, aes(x = dsRent, y = clRent, size = nHU)) +
   xlab("\nDupre+Scott September 2017 Median 1B Rent") +
   ylab("Craigslist 2017-2018 Median 1B Rent\n") +
   labs(size = "N Craigslist\nlistings") +
-  ggsave(file = "./output/rent_scatter_across_1B.png",
+  ggsave(file = "../output/rent_scatter_across_1B.png",
          dpi = 300, width = 6, height = 4)

@@ -1,0 +1,622 @@
+---
+title: ""
+output: 
+  flexdashboard::flex_dashboard:
+    navbar:
+       - {title: "hesscl.com", href: "http://hesscl.com", align: right}
+       - {title: "Project Home", icon: "fa-home", href: "http://hesscl.com/smooth-sea/index.html", align: left} 
+    orientation: columns
+    theme: bootstrap
+    logo: "../logo.svg"
+    source_code: "https://github.com/hesscl/smooth-sea"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#packages
+library(tidyverse) #need dev version of ggplot
+library(forcats)
+library(haven)
+library(lubridate)
+library(haven)
+library(zoo)
+library(ggthemes)
+library(RColorBrewer)
+library(sp)
+library(spdplyr)
+library(geosphere)
+library(rgdal)
+library(rgeos)
+library(sqldf)
+library(spdep)
+library(viridis)
+library(latex2exp)
+library(plotly)
+library(DT)
+library(crosstalk)
+
+#source data_load()
+source("../helpers/load_data.R")
+
+#load ACS data extract (codebook in folder)
+census <- read_csv(file = "../input/acsExtract.csv")
+censusRent <- read_csv(file = "../input/acsRent.csv")
+census <- inner_join(census, censusRent)
+
+#read in tract shapefiles for seattle
+sea_shp <- readOGR(dsn = "../input/sea_tract_2010/sea_tract_2010.shp",
+                  layer = "sea_tract_2010",
+                  GDAL1_integer64_policy = TRUE,
+                  stringsAsFactors = F) 
+
+#use sourced function to load listing summaries
+tract <- load_data()
+
+#### A. construct panel (some missingness) ------------------------------------
+
+#ensure order of census df matches shapefile
+census <- census[match(sea_shp@data$GISJOIN, census$GISJOIN),]
+
+#clean a few fields we might use
+census <- census %>%
+  mutate(nHU = AF7PE001,
+         idtract = row_number(),
+         pOwnoccHU = AF7PE002/AF7PE001,
+         medHUVal = AF9LE001)
+           
+#store NULL object to bind iterated dfs into
+panel <- NULL
+
+#for each unique quarter in the CL data
+for(i in unique(as.character(tract$listingQtr))){
+  period <- tract %>% #start pipe with tract, end with period
+    mutate(listingQtr = factor(listingQtr, ordered = T)) %>% #make factor
+    filter(listingQtr == i) %>% #filter to qtr i
+    right_join(census) %>% #right join to census, allows missingness
+    ungroup() %>% #remove grouping by tract
+    mutate(listingQtr = i, #listingQtr == current iteration
+           Qtr = gsub(pattern = "^\\d{4} ", replacement = "", x = listingQtr)) #subset str to Q1,2,3,4
+  panel <- bind_rows(panel, period) #append to panel object
+}
+
+#establish object for modeling based off of adjusting `panel`
+sea_df <- panel %>% 
+  mutate(actualRent = med1B, #first preserve the observed / observed-to-date
+         med1B = ifelse(listingQtr == as.yearqtr(Sys.Date()), NA, med1B)) %>% #set to NA for INLA to forecast current qtr
+  mutate(p1B = n1B/nListings) %>% #compute share of 1B listings
+  arrange(listingQtr, GISJOIN) #arange qtr, tract
+
+#### B. INLA Models of CL Rent ------------------------------------------------
+
+library(INLA)
+
+#create adjacency matrix from shapefile
+sea_adj <- poly2nb(sea_shp)
+
+#create neighbor file that INLA takes for hyperparameter args
+nb2INLA("../output/seatract.graph", sea_adj)
+sea_df$idqtr <- factor(sea_df$listingQtr, ordered = T)
+sea_df$idqtr1 <- sea_df$idqtr
+sea_df$idtractqtr <- paste(sea_df$idtract, sea_df$Qtr)
+sea_df$idtract1 <- sea_df$idtract
+sea_df$Qtr1 <- sea_df$Qtr
+
+#fixed effect for qtr only
+form.int <- log(med1B) ~ 1 + Qtr
+
+m.int <- inla(form.int, 
+             family = "normal", 
+             data = sea_df,
+             control.predictor = list(compute = TRUE),
+             control.compute = list(dic = TRUE, waic = TRUE))
+
+summary(m.int)
+sea_df$int_Med <- m.int$summary.linear.predictor[, "0.5quant"]
+sea_df$int_SD <- m.int$summary.linear.predictor[, "sd"]
+sea_df$int_postWidth <- m.int$summary.linear.predictor[, "0.975quant"] - m.int$summary.linear.predictor[,"0.025quant"]
+
+#fixed qtr + iid tract random effect
+form.ns <- log(med1B) ~ 1 + Qtr +
+   f(idtract, model = "iid")
+
+m.ns <- inla(form.ns, 
+              family = "normal", 
+              data = sea_df,
+              control.predictor = list(compute = TRUE),
+              control.compute = list(dic = TRUE, waic = TRUE))
+
+summary(m.ns)
+sea_df$ns_Med <- m.ns$summary.linear.predictor[, "0.5quant"]
+sea_df$ns_SD <- m.ns$summary.linear.predictor[, "sd"]
+sea_df$ns_postWidth <- m.ns$summary.linear.predictor[, "0.975quant"] - m.ns$summary.linear.predictor[,"0.025quant"]
+sea_df$ns_Eff <- m.ns$summary.random$idtract[sea_df$idtract, "0.5quant"] 
+
+#IID tract random effect + AR(1) process
+form.nsar1 <- log(med1B) ~ 1 +
+  f(idtract, model = "iid") +
+  f(idqtr, model = "ar1") +
+  f(idqtr1, model = "iid")
+
+m.nsar1 <- inla(form.nsar1, 
+               family = "normal", 
+               data = sea_df,
+               control.predictor = list(compute = TRUE),
+               control.compute = list(dic = TRUE, waic = TRUE))
+
+summary(m.nsar1) #NB: does not improve fit to use random effect time specification, using fixed effects
+sea_df$nsar1_Med <- m.nsar1$summary.linear.predictor[, "0.5quant"]
+sea_df$nsar1_SD <- m.nsar1$summary.linear.predictor[, "sd"]
+sea_df$nsar1_postWidth <- m.nsar1$summary.linear.predictor[, "0.975quant"] - m.nsar1$summary.linear.predictor[,"0.025quant"]
+sea_df$nsar1_Eff <- m.nsar1$summary.random$idtract[sea_df$idtract, "0.5quant"] 
+
+#spatial random effect model (BYM 1991) with AR(1)
+form.bym <- log(med1B) ~ 1 +
+  f(idtract, model = "bym", #ICAR spatial RE for tract neighbors + IID RE for tract
+    scale.model = T,
+    graph = "../output/seatract.graph") +
+  f(idqtr, model = "ar1") +
+  f(idqtr1, model = "iid")
+
+m.bym <- inla(form.bym, 
+             family = "normal", 
+             data = sea_df,
+             control.predictor = list(compute = TRUE),
+             control.compute = list(dic = TRUE, waic = TRUE))
+
+summary(m.bym)
+sea_df$bym_Med <- m.bym$summary.linear.predictor[, "0.5quant"]
+sea_df$bym_SD <- m.bym$summary.linear.predictor[, "sd"]
+sea_df$bym_postWidth <- m.bym$summary.linear.predictor[, "0.975quant"] - m.bym$summary.linear.predictor[,"0.025quant"]
+sea_df$bym_Eff <- m.bym$summary.random$idtract[sea_df$idtract, "0.5quant"] 
+
+#spatio-temporal smoothing model, with AR(1) and linear space-time interaction (Bernadelli 1995)
+form.spt <- log(med1B) ~ 1 + 
+  f(idtract, model = "bym", #ICAR spatial RE for tract neighbors + IID RE for tract
+    scale.model = T,
+    graph = "../output/seatract.graph") +
+  f(idqtr, model = "ar1") +
+  f(idqtr1, model = "iid") +
+  f(idtractqtr, model = "iid")
+
+m.spt <- inla(form.spt, 
+              family = "normal", 
+              data = sea_df,
+              control.predictor = list(compute = TRUE),
+              control.compute = list(dic = TRUE, waic = TRUE),
+              control.inla = list(correct = TRUE, correct.factor = 10))
+
+summary(m.spt)
+sea_df$spt_Med <- m.spt$summary.linear.predictor[, "0.5quant"]
+sea_df$spt_SD <- m.spt$summary.linear.predictor[, "sd"]
+sea_df$spt_postWidth <- m.spt$summary.linear.predictor[, "0.975quant"] - m.spt$summary.linear.predictor[,"0.025quant"]
+sea_df$spt_Eff <- m.spt$summary.random$idtract[sea_df$idtract, "0.5quant"] 
+
+#overfitting? too much bumpiness qtr-to-qtr
+
+#### Maps of Model Output ------------------------------------------------------------------
+
+sea_df <- sea_df %>%
+  mutate_at(.vars = vars(matches("_Med")),
+            .funs = exp) %>%
+  mutate_at(.vars = vars(matches("_SD")),
+            .funs = exp) %>%
+  group_by(GISJOIN) %>% 
+  arrange(GISJOIN, listingQtr) %>%
+  mutate(spt_traj = spt_Med - lag(spt_Med, 4)) %>%
+  ungroup %>%
+  group_by(GISJOIN) %>%
+  mutate(spt_traj = sum(spt_traj, na.rm=T)) %>%
+  ungroup() %>%
+  mutate(bym_cuts = cut(bym_Med, 6),
+         spt_cuts = cut(spt_Med, 6))
+
+sea_shp@data$id <- rownames(sea_shp@data)
+sea_shp@data <- left_join(sea_shp@data, sea_df)
+sea_f <- fortify(sea_shp)
+sea_f <- inner_join(sea_f, sea_shp@data,"id")
+
+rmse <- function(error){sqrt(mean(error^2))}
+mae <- function(error){mean(abs(error))}
+
+#table of fit statistics
+fit_stats <- sea_df %>%
+  mutate(train_test = ifelse(listingQtr == as.yearqtr(Sys.Date()), "Test", "Training")) %>%
+  mutate(int_err = actualRent - int_Med,
+         ns_err = actualRent - ns_Med,
+         nsar1_err = actualRent - nsar1_Med,
+         bym_err = actualRent - bym_Med,
+         spt_err = actualRent - spt_Med) %>% 
+  group_by(train_test) %>%
+  summarize(int_rmse = rmse(int_err[!is.na(int_err)]),
+            int_mae = mae(int_err[!is.na(int_err)]),
+            ns_rmse = rmse(ns_err[!is.na(ns_err)]),
+            ns_mae = mae(ns_err[!is.na(ns_err)]),
+            nsar1_rmse = rmse(nsar1_err[!is.na(nsar1_err)]),
+            nsar1_mae = mae(nsar1_err[!is.na(nsar1_err)]),
+            bym_rmse = rmse(bym_err[!is.na(bym_err)]),
+            bym_mae = mae(bym_err[!is.na(bym_err)]),
+            spt_rmse = rmse(spt_err[!is.na(spt_err)]),
+            spt_mae = mae(spt_err[!is.na(spt_err)])) %>%
+  dplyr::select(train_test, ends_with("_rmse"), ends_with("_mae"))
+```
+
+
+Introduction
+=====================================
+
+Column
+-------------------------------------
+
+### Welcome!
+
+This website provides interactive results for the forecasting models explored in the paper _Estimating Neighborhood Rents using Scraped Data_. 
+
+The goal of this research is to a.) understand the temporal dynamics of rent estimates in Seattle and b.) forecast the current quarter's rent levels based off of the prior periods. The focal series of models regress median one-bedroom rent asked values on different specifications of the panel's correlation structure (i.e. temporal and spatial). All of the candidate models' posterior distributions are estimated with [integrated nested Laplace approximations](https://folk.ntnu.no/hrue/r-inla.org/papers/inla-rss.pdf) (INLA) using the default, weakly-informative priors for all model hyperparameters. Throughout the following analyses, the training data are `r min(sea_df$listingQtr)` up to the prior quarter (i.e. `r as.yearqtr(Sys.Date())-.25`). The test period is a forecast for the current period and includes comparison to the appropriate median rent estimates for data observed so far in this period.
+
+Most graphics include some level of interactivity, usually either hover-over tooltip information or a slider to control various views of the graphic. Clicking on cases will highlight data elements in most graphics, and double-clicking will reset the graphic. You can download the source code and data for this project from Github [here](https://github.com/hesscl/smooth-sea).
+
+Contact Chris Hess at [hesscl@uw.edu](mailto://hesscl@uw.edu) for more information about this research.
+
+_This page was last updated: `r Sys.Date()`_
+
+<br>
+<hr>
+<br>
+
+**Table of Contents**
+
+Page                |  Description
+------------------- | ---------------------------------------------------------
+Distribution        | density graphic to investigate the distribution of rents among Seattle neighborhoods for each quarter
+Panel Time-Series   | line graphic to show the observed or modeled temporal structure
+Spatial Time-Series | series of maps to show observed change across time
+Model Fit           | tables of model root mean square error (RMSE), mean absolute error (MAE), and deviance information criterion (DIC) across training and test data
+
+
+Column
+-------------------------------------
+
+### Observed vs. Smoothed Rent Estimates
+
+```{r index.maps, echo=F}
+obs <- sea_f %>%
+  mutate(rent = actualRent) %>%
+  filter(listingQtr == as.yearqtr(Sys.Date())) %>%
+  mutate(var = paste0(as.yearqtr(Sys.Date()), "-to-Date")) %>%
+  dplyr::select(GISJOIN, long, lat, group, rent, var, actualRent, spt_Med, NAMELSAD10, n1B)
+
+pred <- sea_f %>%
+  mutate(rent = bym_Med) %>%
+  filter(listingQtr == as.yearqtr(Sys.Date())) %>%
+  mutate(var = paste0(as.yearqtr(Sys.Date()), " Forecast")) %>%
+  dplyr::select(GISJOIN, long, lat, group, rent, var, actualRent, bym_Med, NAMELSAD10, n1B)
+
+comb <- bind_rows(obs, pred) %>%
+  mutate(tooltip = paste0(NAMELSAD10, "<br>", "Forecast: $", round(bym_Med), "<br>", "Qtr-to-Date: $", round(actualRent), "<br>", "N Qtr-to-Date: ", n1B))
+comb <- SharedData$new(comb, ~GISJOIN)
+
+avp_map <- ggplot(comb, aes(x = long, y = lat, group = group, fill = rent, label = tooltip)) +
+  facet_wrap(~ var) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(limits = c(750, 2500), labels = scales::dollar) +
+  coord_quickmap() +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  labs(fill = "Median<br>1B Rent")
+
+ggplotly(avp_map, tooltip = "label") %>%
+  layout(autosize = T, margin = list(b = 50, r = 50, l = 50, t = 50)) %>%
+  highlight(on = "plotly_click")
+```
+
+Distribution
+=====================================
+
+```{r, echo=F}
+gg_hist <- ggplot(sea_df, aes(x = med1B, group = listingQtr, color = listingQtr)) +
+  geom_density() +
+  theme_minimal() +
+  scale_x_continuous(labels = scales::dollar) +
+  scale_color_viridis_d(end = .8) +
+  xlab("\nMedian 1B Rent") +
+  labs(color = "Quarter")
+
+ggplotly(gg_hist, tooltip = c("color", "x")) %>%
+  layout(autosize = T)
+```
+
+
+Panel Time-Series
+=====================================
+
+```{r temp.lineplot, echo=F}
+obs_df <- sea_df %>%
+  group_by(listingQtr) %>%
+  mutate(value = actualRent,
+         qtrDev = value-mean(value, na.rm=T),
+         model = "A. Observed")
+
+int_df <- sea_df %>%
+  group_by(listingQtr) %>%
+  mutate(value = int_Med,
+         qtrDev = value-mean(value, na.rm=T),
+         model = "B. Quarter FE") %>%
+  dplyr::select(listingQtr, value, GISJOIN, qtrDev, model)
+
+ns_df <- sea_df %>%
+  group_by(listingQtr) %>%
+  mutate(value = ns_Med,
+         qtrDev = value-mean(value, na.rm=T),
+         model = "C. Non-Spatial") %>%
+  dplyr::select(listingQtr, value, GISJOIN, qtrDev, model)
+
+nsar1_df <- sea_df %>%
+  group_by(listingQtr) %>%
+  mutate(value = nsar1_Med,
+         qtrDev = value-mean(value, na.rm=T),
+         model = "D. Non-Spatial AR(1)") %>%
+  dplyr::select(listingQtr, value, GISJOIN, qtrDev, model)
+
+bym_df <- sea_df %>%
+  group_by(listingQtr) %>%
+  mutate(value = bym_Med,
+         qtrDev = value-mean(value, na.rm=T),
+         model = "E. Spatial AR(1)") %>%
+  dplyr::select(listingQtr, value, GISJOIN, qtrDev, model)
+
+spt_df <- sea_df %>%
+  group_by(listingQtr) %>%
+  mutate(value =  spt_Med,
+         qtrDev = value-mean(value, na.rm=T),
+         model = "F. Spatiotemporal AR(1)") %>%
+  dplyr::select(listingQtr, value, GISJOIN, qtrDev, model)
+
+panel_df <- bind_rows(obs_df, int_df, ns_df, nsar1_df, bym_df, spt_df)
+
+panel_df <- SharedData$new(panel_df, ~GISJOIN)
+
+obs_lineplot <- ggplot(panel_df, aes(x = listingQtr, y = value, group = GISJOIN, label = GISJOIN, color = qtrDev, frame = model)) +
+  geom_line(lwd = .25, color = "black", alpha = .5) +
+  geom_point() +
+  scale_color_gradient2_tableau() +
+  scale_y_continuous(labels = scales::dollar) +
+  xlab("") +
+  ylab("Median 1B Rent\n") +
+  theme_minimal() +
+  labs(color = "Quarterly\ndeviation")
+
+ggplotly(obs_lineplot, tooltip = c("label", "y")) %>%
+  layout(autosize = T) %>%
+  animation_opts(frame = 1000, easing = "linear", redraw = FALSE) %>%
+  animation_button(hide = T) %>%
+  highlight()
+```
+
+Spatial Time-Series
+=====================================
+
+Column {.tabset}
+-------------------------------------
+
+### Observed
+
+```{r spat.series.actual, echo=F}
+map_panel_obs <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = actualRent)) +
+  facet_grid(~ listingQtr) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(labels = scales::dollar, na.value = "grey80") +
+  coord_quickmap() +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  labs(fill = "Median<br>1B Rent")
+  
+ggplotly(map_panel_obs) %>%
+  layout(autosize = T)
+```
+
+### Non-Spatial AR(1) 
+
+```{r spat.series.nsar1, echo=F}
+map_panel_nsar1 <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = nsar1_Med, frame = listingQtr)) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(labels = scales::dollar, na.value = "grey80") +
+  coord_quickmap() +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  labs(fill = "Median<br>1B Rent")
+  
+ggplotly(map_panel_nsar1) %>%
+  layout(autosize = T) %>%
+  animation_opts(1000, transition = 0, redraw = FALSE)
+```
+
+### Spatial AR(1)
+
+```{r spat.series.bym, echo=F}
+map_panel_bym <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = bym_Med, frame = listingQtr)) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(labels = scales::dollar, na.value = "grey80") +
+  coord_quickmap() +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  labs(fill = "Median<br>1B Rent")
+  
+ggplotly(map_panel_bym) %>%
+  layout(autosize = T) %>%
+  animation_opts(1000, transition = 0, redraw = FALSE)
+```
+
+
+### Spatiotemporal AR(1)
+
+```{r spat.series.spt, echo=F}
+map_panel_spt <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = spt_Med, frame = listingQtr)) +
+  geom_polygon(color = "grey85", lwd = .05) +
+  scale_fill_viridis_c(labels = scales::dollar, na.value = "grey80") +
+  coord_quickmap() +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  labs(fill = "Median<br>1B Rent")
+  
+ggplotly(map_panel_spt) %>%
+  layout(autosize = T) %>%
+  animation_opts(1000, transition = 0, redraw = FALSE)
+```
+
+
+Model Fit
+=====================================
+
+Column {.tabset}
+-------------------------------------
+
+### Model Legend
+
+Model abbr.                   | Description
+----------------------------- | -----------------------------------------------
+**int**    | Quarter fixed intercept
+           | `r format(form.int)`
+**ns**     | Non-spatial tract random effect for each tract, quarter fixed intercept
+           | `r format(form.ns)`
+**nsar1**  | Non-spatial tract random effect, AR(1) random effect for prior quarter, i.i.d random effect for current quarter
+           | `r format(form.nsar1)`
+**bym**    | Spatial intrinsic conditional autoregressive (ICAR) tract random-effect, non-spatial i.i.d tract random effect, AR(1) random effect for prior quarter, i.i.d random effect for current quarter
+           |  `r format(form.bym)`
+**spt**    | Spatial intrinsic conditional autoregressive (ICAR) tract random-effect, non-spatial i.i.d tract random effect, AR(1) random effect for prior quarter, i.i.d random effect for current quarter, i.i.d. random effect for tract-quarter (space-time interaction)
+           | `r format(form.spt)`
+
+
+### Accuracy and Information Criteria
+
+```{r, echo=F}
+knitr::kable(fit_stats %>% dplyr::select(train_test, ends_with("rmse")))
+```
+
+<br>
+<hr>
+<br>
+
+```{r, echo=F}
+knitr::kable(fit_stats %>% dplyr::select(train_test, ends_with("mae")))
+```
+
+<br>
+<hr>
+<br>
+
+```{r, echo=F}
+knitr::kable(data.frame("train_test" = "Training",
+                        "int_DIC" = m.int$dic$dic,
+                        "ns_DIC" = m.ns$dic$dic,
+                        "nsar1_DIC" = m.nsar1$dic$dic,
+                        "bym_DIC" = m.bym$dic$dic,
+                        "spt_DIC" = m.spt$dic$dic))
+```
+
+<br>
+<hr>
+<br>
+
+```{r, echo=F}
+knitr::kable(data.frame("train_test" = "Training",
+                        "int_WAIC" = m.int$waic$waic,
+                        "ns_WAIC" = m.ns$waic$waic,
+                        "nsar1_WAIC" = m.nsar1$waic$waic,
+                        "bym_WAIC" = m.bym$waic$waic,
+                        "spt_WAIC" = m.spt$waic$waic))
+```
+
+### Hyperparameters
+
+```{r, echo=F}
+knitr::kable(summary(m.nsar1)$hyperpar, caption = "Non-Spatial AR(1)")
+```
+
+<br>
+<hr>
+<br>
+
+```{r, echo=F}
+knitr::kable(summary(m.bym)$hyperpar, caption = "Spatial AR(1)")
+```
+
+<br>
+<hr>
+<br>
+
+```{r, echo=F}
+knitr::kable(summary(m.spt)$hyperpar, caption = "Spatiotemporal AR(1)")
+```
+
+Column {.tabset}
+-------------------------------------
+
+### Non-Spatial AR(1)
+
+```{r, echo=F}
+avp_scatter <- ggplot(sea_df, aes(x = actualRent, y = nsar1_Med, size = n1B, frame = listingQtr)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  scale_x_continuous(limits = c(800, 2600), labels = scales::dollar) +
+  scale_y_continuous(limits = c(800, 2600), labels = scales::dollar) +
+  xlab("Actual") +
+  ylab("Predicted") +
+  scale_size_area() +
+  coord_equal() +
+  theme_minimal()
+
+ggplotly(avp_scatter) %>%
+  layout(autosize = T, margin = list(b = 50, r = 50, l = 50, t = 50)) %>%
+  animation_opts(1000, transition = 0, redraw = T)
+```
+
+
+### Spatial AR(1)
+
+```{r, echo=F}
+avp_scatter <- ggplot(sea_df, aes(x = actualRent, y = bym_Med, size = n1B, frame = listingQtr)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  scale_x_continuous(limits = c(800, 2600), labels = scales::dollar) +
+  scale_y_continuous(limits = c(800, 2600), labels = scales::dollar) +
+  xlab("Actual") +
+  ylab("Predicted") +
+  scale_size_area() +
+  coord_equal() +
+  theme_minimal()
+
+ggplotly(avp_scatter) %>%
+  layout(autosize = T, margin = list(b = 50, r = 50, l = 50, t = 50)) %>%
+  animation_opts(1000, transition = 0, redraw = FALSE)
+```
+
+
+### Spatiotemporal AR(1)
+
+```{r, echo=F}
+avp_scatter <- ggplot(sea_df, aes(x = actualRent, y = spt_Med, size = n1B, frame = listingQtr)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  scale_x_continuous(limits = c(800, 2600), labels = scales::dollar) +
+  scale_y_continuous(limits = c(800, 2600), labels = scales::dollar) +
+  xlab("Actual") +
+  ylab("Predicted") +
+  scale_size_area() +
+  coord_equal() +
+  theme_minimal()
+
+ggplotly(avp_scatter) %>%
+  layout(autosize = T, margin = list(b = 50, r = 50, l = 50, t = 50)) %>%
+  animation_opts(1000, transition = 0, redraw = FALSE)
+```

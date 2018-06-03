@@ -1,8 +1,8 @@
 load_data <- function(){
   #determine config (dev or github)
-  if(file.exists("../data/cl/craigslistDB.sqlite")){
+  if(file.exists("../../data/cl/craigslistDB.sqlite")){
     #connect to database if file.exists
-    DB <- dbConnect(SQLite(), dbname="../data/cl/craigslistDB.sqlite")
+    DB <- dbConnect(SQLite(), dbname="../../data/cl/craigslistDB.sqlite")
     cl <- tbl(DB, "clean") #create dbi for clean listing table
     
     #compute tract aggregates for CL listing count
@@ -29,11 +29,11 @@ load_data <- function(){
       ungroup %>%
       arrange(GISJOIN, listingQtr)
     dbDisconnect(DB)
-    write_csv(tract, "./input/tractCl.csv")
+    write_csv(tract, "../input/tractCl.csv")
     return(tract)
   } else{
     #if github config, read in extract from cl db
-    tract <- read_csv("./input/tractCl.csv")
+    tract <- read_csv("../input/tractCl.csv")
     return(tract)
   }
 }
