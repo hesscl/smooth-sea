@@ -4,11 +4,10 @@ output:
   flexdashboard::flex_dashboard:
     navbar:
        - {title: "hesscl.com", href: "http://hesscl.com", align: right}
-       - {title: "Project Home", icon: "fa-home", href: "http://hesscl.com/smooth-sea/index.html", align: right} 
+       - {title: "Project Home", href: "http://hesscl.com/smooth-sea/index.html", align: left} 
     orientation: columns
     theme: bootstrap
     logo: "../logo.svg"
-    source_code: "https://github.com/hesscl/smooth-sea/"
 ---
 
 ```{r setup, include=FALSE}

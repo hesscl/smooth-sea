@@ -13,13 +13,17 @@ This project is under construction and subject to change at any moment!
 
 <br>
 
+### Objective
+
+The goal of this research is to understand the spatial and temporal dynamics of rent estimates in Seattle using scraped rental housing listings from Craigslist. I use a series of data visualizations to describe the overall datam, after which I model a panel of quarterly census tract estimates to explain the dynamics observed so far and forecast a surface of rent values for the current quarter.
+
 ### Contents
 
 [Working paper on estimating Seattle neighborhood rent indicators](./manuscript/index.html)
 
-[`flexdashboard` for working paper's model diagnostics and forecasts](./dashboard/index.html)
+[`flexdashboard`](./dashboard/index.html) for working paper's model diagnostics and forecasts
 
-[GitHub Repository](https://github.com/hesscl/smooth-sea/)
+[GitHub Repository](https://github.com/hesscl/smooth-sea/) with source code for manuscript and results dashboard
 
 <br>
 
