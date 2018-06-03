@@ -58,7 +58,7 @@ tract <- load_data()
 <br>
 <br>
 
-Demand for rental housing units in Seattle, WA surged in the past decade, due to relative scarcity in available housing amidst a period of historic population growth. Growing shares of households are unable to buy a home short of "driving till they qualify", and among households who rent a substantial share pay 30%, if not more of their incomes on their housing costs. The rising cost of housing therefore has a direct role in neighborhood processes of "demographic inversion" like urban gentrification and suburbanizing poverty. Census data (i.e. decennial and American Community Survey) have common currency among scholars and practitioners interested in metropolitan housing markets, but neverthless possess a substantial limitation for research in tight housing markets like Seattle---that is, at least two years elapse between data collection and publication, if not more. This publication schedules prohibit analyzing any market dynamics beyond long-term trends, particularly among smaller areas of aggregation like neighborhoods. While more up-to-date options for neighborhood rent data exist through privately-held companies, such data can be somewhat of a black box in their creation and may be biased towards the costs of corporate-held properties. This would-be problem for academic researchers creates an opportunity for applying web scraping methods to generate a novel data on housing availability and costs.
+Demand for rental housing units in Seattle, WA surged in the past decade, due to relative scarcity in available housing amidst a period of historic population growth. Growing shares of households are unable to buy a home short of "driving till they qualify", and among households who rent a substantial share pay 30%, if not more of their incomes on their housing costs. The rising cost of housing therefore has a direct role in neighborhood processes of "demographic inversion" like urban gentrification and suburbanizing poverty. American Community Survey data have common currency among scholars and practitioners interested in metropolitan housing markets, but neverthless possess a substantial limitation for research in tight housing markets like Seattle---that is, at least two years elapse between data collection and publication, if not more. This publication lag for ACS data prohibits analyzing any market dynamics beyond long-term trends, particularly for estimates of smaller areas of aggregation like neighborhoods where ACS uses 5-year rolling-average methods as well. While more up-to-date options for neighborhood rent data exist through privately-held companies, such data can be somewhat of a black box in their creation and may be biased towards the costs of corporate-held properties. This would-be problem for academic researchers creates an opportunity for applying web scraping methods to generate a novel data on housing availability and costs.
 
 This study aims to demonstrate why scraped rental housing listings are a valuable source of data in subject areas such as housing studies and neighborhood demography through a set of descriptive analyses and models of quarterly rent levels among census tracts in Seattle, WA. Summaries of the Craigslist data show agreement with existing sources in their distribution but do suggest higher median levels for most neighborhoods, likely given the listings' recent collection relative to other data. In a more general sense, the methods and frameworks used in this study also offer a template for efficiently collecting web data, conducting reproducible research, and publishing interactive results to GitHub. I start by briefly reviewing some background relevant to studying neighborhood rental housing. I then outline a process for automated web scraping of a rental listing source like Craigslist using a program called Helena, and compare aggregates from the collected rental listings with other data to assess rent agreement in measures. After describing the data and process, I present a set of models predicting neighborhood rent levels to understand different how different temporal and spatial structures fit the data. I conclude by discussing the promise of web data for subfields like housing studies and the value of R Markdown and GitHub for social science research. 
 
@@ -82,6 +82,8 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 ```
 
 ![Figure 1. Map of Seattle (left), Seattle Craigslist one-bedroom listing point and 2D-density map (right).](../output/map_point_density.png)
+
+
 <br>
 
 ### Web scraping with Helena
@@ -103,6 +105,8 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 
 ![Figure 2. Time-series of median rent (all bedroom sizes) for Seattle, 1997-2018. Historical values adjusted with CPI; Craigslist estimates are quarterly, Dupre+Scott are semi-annual and ACS are annual (i.e. respective 1-Year Estimates for each year period).](../output/rent_lineplot.png)
 
+
+
 ```{r rent_map_across, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)
 if(file.exists("../../data/cl/craigslistDB.sqlite")){
@@ -112,6 +116,8 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 
 ![Figure 3. Chloropleth map of neighborhood 1-bedroom rents across Craigslist, Dupre+Scott and ACS 2012-2016 5-Year Estimates. Craigslist represents median asking rent among all one-bedroom listings, Dupre+Scott consists of median contract rents among one-bedroom units in 20+ unit properties, while ACS releases median gross (asking) rents for all one-bedroom renter-occupied housing units sampled.](../output/rent_map_across_1B.png)
 
+
+
 ```{r rent_scatter_across, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)
 if(file.exists("../../data/cl/craigslistDB.sqlite")){
@@ -120,6 +126,8 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 ```
 
 ![Figure 4. Scatter plot of neighborhood 1-bedroom rents across Craigslist and Dupre+Scott. Craigslist represents median asking rent among all one-bedroom listings, Dupre+Scott consists of median contract rents among one-bedroom units in 20+ unit properties.](../output/rent_scatter_across_1B.png)
+
+
 <br>
 
 ## Models

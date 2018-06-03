@@ -1,9 +1,10 @@
 ---
 title: "Estimating Neighborhood Rents with Scraped Data"
 author: "Chris Hess"
-date: "June 2, 2018"
 output: 
-  html_document
+  html_document:
+      include:
+        after_body: footer.html
 ---
 
 <br>
@@ -11,9 +12,8 @@ output:
 This project is under construction and subject to change at any moment!
 
 <br>
-<br>
 
-## Project Contents
+### Contents
 
 [Working paper on agreement between Seattle neighborhood rent indicators](./manuscript/index.html)
 
@@ -23,11 +23,12 @@ This project is under construction and subject to change at any moment!
 
 <br>
 
-## See also
+### See also
 
 [Helena](http://helena-lang.org) - Web automation for end users
 
 <br>
 
-## Contact Information
+### Contact
 
+Email Chris Hess at [hesscl@uw.edu](mailto://hesscl@uw.edu) for more information about this research.

@@ -1,5 +1,4 @@
 ---
-title: ""
 output: 
   flexdashboard::flex_dashboard:
     navbar:
@@ -254,9 +253,7 @@ This website provides interactive results for the forecasting models explored in
 
 The goal of this research is to a.) understand the temporal dynamics of rent estimates in Seattle and b.) forecast the current quarter's rent levels based off of the prior periods. The focal series of models regress median one-bedroom rent asked values on different specifications of the panel's correlation structure (i.e. temporal and spatial). All of the candidate models' posterior distributions are estimated with [integrated nested Laplace approximations](https://folk.ntnu.no/hrue/r-inla.org/papers/inla-rss.pdf) (INLA) using the default, weakly-informative priors for all model hyperparameters. Throughout the following analyses, the training data are `r min(sea_df$listingQtr)` up to the prior quarter (i.e. `r as.yearqtr(Sys.Date())-.25`). The test period is a forecast for the current period and includes comparison to the appropriate median rent estimates for data observed so far in this period.
 
-Most graphics include some level of interactivity, usually either hover-over tooltip information or a slider to control various views of the graphic. Clicking on cases will highlight data elements in most graphics, and double-clicking will reset the graphic. You can download the source code and data for this project from Github [here](https://github.com/hesscl/smooth-sea).
-
-Contact Chris Hess at [hesscl@uw.edu](mailto://hesscl@uw.edu) for more information about this research.
+Most graphics include some level of interactivity, usually either hover-over tooltip information or a slider to control various views of the graphic. Clicking on cases will highlight data elements in most graphics, and double-clicking will reset the graphic.
 
 _This page was last updated: `r Sys.Date()`_
 
