@@ -96,6 +96,7 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 
 ### Web scraping with Helena
 
+Helena is a high-level programming language for end users to automate web scraping as a method of data collection. 
 <br>
 
 ### Data Processing

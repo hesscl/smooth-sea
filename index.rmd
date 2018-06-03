@@ -15,7 +15,7 @@ This project is under construction and subject to change at any moment!
 
 ### Objective
 
-The goal of this research is to understand the spatial and temporal dynamics of rent estimates in Seattle using scraped rental housing listings from Craigslist. I use a series of data visualizations to describe the overall datam, after which I model a panel of quarterly census tract estimates to explain the dynamics observed so far and forecast a surface of rent values for the current quarter.
+The goal of this research is to understand the spatial and temporal dynamics of rent estimates in Seattle using scraped rental housing listings from Craigslist. I use a series of data visualizations to describe the overall data, after which I model a panel of quarterly census tract estimates to explain the dynamics observed so far and forecast a surface of rent values for the current quarter.
 
 <br>
 
