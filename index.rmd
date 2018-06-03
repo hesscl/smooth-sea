@@ -3,8 +3,7 @@ title: "smooth-sea"
 output: 
   flexdashboard::flex_dashboard:
     navbar:
-      - { title: "hesscl.com", href: "http://hesscl.com", align: right ,
-          title: "Manuscript", href: "http://github.com/hesscl/smooth-sea/smooth-sea.html", align: right}
+       - {title: "hesscl.com", href: "http://hesscl.com", align: right} 
     orientation: columns
     theme: bootstrap
     logo: logo.svg
@@ -250,7 +249,7 @@ Column
 
 ### Welcome!
 
-This website provides interactive results for the forecasting models explored in the paper [_Estimating Neighborhood Asking Rents using Scraped Craigslist Rental Listings_](http://github.com/hesscl/smooth-sea/smooth-sea.html). 
+This website provides interactive results for the forecasting models explored in the paper _Estimating Neighborhood Asking Rents using Scraped Craigslist Rental Listings_. 
 
 The goal of this research is to a.) understand the temporal dynamics of rent estimates in Seattle and b.) forecast the current quarter's rent levels based off of the prior periods. The focal series of models regress median one-bedroom rent asked values on different specifications of the panel's correlation structure (i.e. temporal and spatial). All of the candidate models' posterior distributions are estimated with [integrated nested Laplace approximations](https://folk.ntnu.no/hrue/r-inla.org/papers/inla-rss.pdf) (INLA) using the default, weakly-informative priors for all model hyperparameters. Throughout the following analyses, the training data are `r min(sea_df$listingQtr)` up to the prior quarter (i.e. `r as.yearqtr(Sys.Date())-.25`). The test period is a forecast for the current period and includes comparison to the appropriate median rent estimates for data observed so far in this period.
 

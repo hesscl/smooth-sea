@@ -30,6 +30,7 @@ WGS.latlon <- CRS("+proj=longlat +datum=WGS84")
 tract2000 <- readOGR(dsn = "./input/sea_tract_2000/sea_tract_2000.shp",
                      layer = "sea_tract_2000",
                      GDAL1_integer64_policy = TRUE,
+                     verbose = F,
                      stringsAsFactors = F) 
 tract2000 <- spTransform(tract2000, WGS.latlon)
 proj4string(scatter_cl) <- WGS.latlon
