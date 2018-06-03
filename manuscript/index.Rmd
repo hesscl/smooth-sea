@@ -6,11 +6,17 @@ output:
   html_document:
     toc: true
     toc_float: true
-    include:
-      in_header: header.html
+    includes:
+      in_header: "../header.html"
+      after_body: "../footer.html"
 abstract: "Online classified ads are a key source of information about local rental housing markets. This research asks what temporal and spatial dynamics explain neighborhood variations in one-bedroom rents in Seattle, WA, and contributes a novel approach to forecasting quarterly neighborhood rent levels using Bayesian models estimated with integrated nested Laplace approximations (INLA). All models were trained on data for 2017 Q2 through 2018 Q1, with forecasts for 2018 Q2 compared against the observed-to-date data for the current quarter (i.e. 2018 Q2). The top model assumes that spatial and temporal dynamics are separable, i.e. independent of each other, and non-interactive. This spatial random-effects model with AR(1) temporal structure achieves a mean absolute error (MAE) of about $90 for the training data and $145 for the test data."
-
 ---
+
+<style>
+.list-group-item.active, .list-group-item.active:focus, .list-group-item.active:hover {
+    background-color: #4b2e83;
+}
+</style>
 
 ```{r setup, include=FALSE}
 #packages
