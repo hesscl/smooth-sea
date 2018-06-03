@@ -1,6 +1,5 @@
 ---
 title: "Estimating Neighborhood Rents with Scraped Data"
-author: "Chris Hess"
 output: 
   html_document:
       includes:

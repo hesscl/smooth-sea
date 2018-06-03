@@ -1,4 +1,5 @@
 ---
+title: "smooth-sea"
 output: 
   flexdashboard::flex_dashboard:
     navbar:
