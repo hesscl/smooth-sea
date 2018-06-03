@@ -7,6 +7,10 @@ output:
 ---
 
 <br>
+
+This project is under construction and subject to change at any moment!
+
+<br>
 <br>
 
 ## Project Contents
@@ -25,5 +29,5 @@ output:
 
 <br>
 
-## Contact Informatiion
+## Contact Information
 
