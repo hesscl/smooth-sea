@@ -8,7 +8,7 @@ output:
     orientation: columns
     theme: bootstrap
     logo: "../logo.svg"
-    source_code: "https://github.com/hesscl/smooth-sea"
+    source_code: "https://github.com/hesscl/smooth-sea/"
 ---
 
 ```{r setup, include=FALSE}
