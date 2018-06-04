@@ -21,7 +21,7 @@ scatter_cl <- scatter_sea %>%
                 cleanBeds, cleanRent, cleanSqft, lat, lng) %>% #SELECT these columns
   mutate(listingDate = as.Date(listingDate),
          listingQtr = as.yearqtr(listingDate)) %>%
-  filter(cleanBeds %in% c(1), listingQtr >= "2017 Q2")
+  filter(cleanBeds %in% c(1), listingQtr >= "2017 Q1")
 
 coordinates(scatter_cl) <- cbind(scatter_cl$lng, scatter_cl$lat)
 

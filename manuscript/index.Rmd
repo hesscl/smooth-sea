@@ -92,7 +92,7 @@ For-profit data sources play a role in filling the information gap about rental 
 
 ## Data
 
-### Web scraping using Helena
+### Web Scraping using Helena
 
 [Helena](http://helena-lang.org) is a high-level programming language for end users to automate web scraping as a method of data collection. Users write programs in an extension for Google Chrome by demonstrating the first row of data they want to collect using clicks, form interactions and highlighting values. The extension translates an initial demonstration into a starting script written in Helena, which a user can further modify or set to run on a regular schedule. Though Helena programs collect data roughly at the speed they are recorded at, users can run multiple programs in parallel to increase the volume of data collected. Data accumulate on a remote server (soon-to-be AWS) where users can later query either the full table of scraped data or a subset scraped within a specified number of hours. 
 
@@ -116,15 +116,15 @@ In the present case, a program extracts scraped listings observed since the data
 
 ### Data Description
 
-We have collected `r sum(tract$nListings)` Seattle rental housing listings from Craigslist over the course of our data collection (`r min(tract$listingQtr)` to `r max(tract$listingQtr)`). Of the overall corpus of listings we've collected, `r sum(tract$n1B)` (about `r round(sum(tract$n1B)/sum(tract$nListings), 2)*100`%) were one-bedroom listings. 
+We have collected `r sum(tract$nListings)` Seattle rental housing listings from Craigslist over the course of our data collection (`r min(tract$listingQtr)` to `r max(tract$listingQtr)`). Among the overall listings we've collected, `r sum(tract$n1B)` (about `r round(sum(tract$n1B)/sum(tract$nListings), 2)*100`%) were one-bedroom listings. 
 
-The following series of graphics summarize the listing data collected to date and compare rent estimates from these data to ACS data and Dupre+Scott. Wherever possible, visualizations focus on one-bedroom units to make comparisons between data for the most common unit type in Seattle. However, for Figure 2 data limitations require that the comparison is all housing units.
+The following series of graphics summarize the listing data collected to date and compare rent estimates from these data to ACS data and Dupre+Scott. In an attempt to compare summaries about like rental units as much as possible, visualizations focus on one-bedroom units in all but one instance. One-bedroom units are tied with the combined share of two and three bedroom units for the [most common unit bedroom size](https://factfinder.census.gov/bkmk/table/1.0/en/ACS/16_1YR/S2504/1600000US5363000) in Seattle according to 2016 ACS data. For Figure 2, data limitations require that the comparison is all housing units since ACS only recently (i.e. 2015-2016) started publishing bedroom-specific rent levels.
 
 <br>
 <hr>
 <br>
 
-Figure 1 shows a reference map of Seattle. In the right pane, each point indicates a one-bedroom listing collected at some point over our study's span. The polygons overlaid on higher-density neighborhoods around Downtown, South Lake Union and Ballard correspond to particularly strong Craigslist listing activity.
+Figure 1 shows a reference map of Seattle on the left. Opposite this is a visualization of the scraped Seattle rental listing data. Each point indicates a one-bedroom listing collected at some point over our study's span. The polygons overlaid on higher-density neighborhoods around Downtown, South Lake Union and Ballard correspond to particularly strong Craigslist listing activity.
 
 ```{r map_point_density, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)
@@ -141,7 +141,7 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 
 Figure 2 shows a heatmap for the time-series of one-bedroom listings per day. The grey cells indicate days where our scraper was offline. Outages were more common in the earliest phases of work, but now are relatively rare. 
 
-At the end of February we implemented a procedure to have the Helena program immediately restart scraping (i.e. re-query the available listings as a new index to work through) in order to ensure any and all listings are scraped each day. The net impact of this change is fairly evident in the time-series heatmap. We now see more temporal structure to the listing count for each day---relatively fewer listings are posted on Sundays, though this could be related to greater listing on Saturdays (i.e. everything is posted at the beginning of the weekend in order to maximize weekend housing searchers' likelihoods of seeing it). Perhaps unsurprisingly, there were dips in listing activity on prominent holiday's like New Year's Day, Easter and Memorial Day.
+At the end of February 2018 we implemented a procedure to have the Helena program immediately restart scraping (i.e. re-query the available listings as a new index to work through) in order to ensure any and all listings are scraped each day. The net impact of this change is fairly evident in the time-series heatmap. We now see more temporal structure to the listing count for each day---relatively fewer listings are posted on Sundays, though this could be related to greater listing on Saturdays (i.e. everything is posted at the beginning of the weekend in order to maximize weekend housing searchers' likelihoods of seeing it). Perhaps unsurprisingly, there were dips in listing activity on prominent holiday's like New Year's Day, Easter and Memorial Day.
 
 ```{r n_heatmap, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)
@@ -160,8 +160,6 @@ Figure 3 is a line graphic indicating agreement across data for Seattle-wide med
 
 The first takeaway from the graphic is the large spike in rent levels following 2010, with a similar trajectory followed in the estimates from Dupre+Scott and the ACS. Throughout the span of Dupre+Scott and ACS data, these two indicators differ by about $100-150 at any given point, though the disagreement is at its largest at the ACS data's current endpoint of 2016. Given that the Dupre+Scott data and ACS data both sample rents from already-leased-up units (exclusively in the case of ACS), a plausible explanation for this systematic difference is that Dupre+Scott rent estimates reflect only the population of rental units in larger structures (whereas ACS is theoretically sampling rental units of all property sizes and characteristics.
 
-Only the Craigslist and Dupre+Scott are particularly useful for understanding more recent median levels for the Seattle rental housing market.
-
 ```{r rent_lineplot, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)
 if(file.exists("../../data/cl/craigslistDB.sqlite")){
@@ -169,11 +167,21 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 }
 ```
 
-![**Figure 3.** Time-series of median rent (all bedroom sizes) for Seattle, 1997-2018. Historical values adjusted with CPI; Craigslist estimates are quarterly, Dupre+Scott are semi-annual and ACS are annual (i.e. respective 1-Year Estimates for each year period).](../output/rent_lineplot.png)
+![**Figure 3.** Time-series of median rent (all bedroom sizes) for Seattle, 1997-2018. Historical values adjusted with CPI; Craigslist estimates are quarterly, Dupre+Scott are semi-annual (March and September), and ACS are annual (i.e. respective 1-Year Estimates for each year period).](../output/rent_lineplot.png)
+
+Only the Craigslist and Dupre+Scott can offer insight into more recent median levels for the Seattle rental housing market. Both data suggest continued increases in the marketwide median rent into Fall 2017, though the Craigslist slope is about twice in its size. Some of the spike observed between the second and third data points of the Craigslist series may be related to missing listings (whether due to the early-stage process or outages), something which might bias the estimate upward in favor of regularly posted commerical listings. Though the estimates here reflect deduplicated listings, regularly updating a listing raises its likelihood of being at the top of the index our scraper works off of, thereby increasing its selection probability. This volatility in Craigslist asking rents could also be brought on by recently-developed buildings in "lease-up" adding a glut of expensive listings to the quarters' samples. 
+
+However, by the final point of Dupre+Scott's series (Fall 2017, corresponding to September), the difference compared to the Craigslist median was about $75. Mirroring other accounts about a decline in rents during Winter 2018, the Craigslist data showed a fairly precipitous decline between 
 
 <br>
 <hr>
 <br>
+
+The focus of the data description now turns towards estimating median rents for specific neighborhoods. While zip codes, unofficial City neighborhoods and even arbitrary grid geographies can all be used to aggregate (or in a graphical sense, rasterize) micro-data about rental housing,  . Figure 4 
+
+[Reference 2000 Census tract map for Seattle](https://www.seattle.gov/Documents/Departments/OPCD/Demographics/GeographicFilesandMaps/2000CensusSeattleTractMap.pdf)
+
+[Reference 2010 census tract map for Seattle](https://www.seattle.gov/Documents/Departments/OPCD/Demographics/GeographicFilesandMaps/2010CensusTractsandZipCodeBoundaries.pdf)
 
 ```{r rent_map_across, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)

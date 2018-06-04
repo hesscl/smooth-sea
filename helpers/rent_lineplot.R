@@ -25,10 +25,10 @@ sumCL <- cl %>%
   distinct(matchAddress, matchAddress2, catBeds, cleanSqft, cleanRent, .keep_all = T) %>%
   mutate(listingQtr = as.yearqtr(as.Date(listingDate))) %>%
   group_by(listingQtr) %>%
+  filter(listingQtr >= "2017 Q1") %>%
   summarize(Rent = median(cleanRent, na.rm=T),
             nHU = n()) %>%
   rename(moYr = listingQtr) %>%
-  filter(nHU >= 200) %>%
   mutate(dataSrc = "Craigslist") %>%
   select(moYr, Rent, dataSrc) %>%
   mutate(moYr = as.Date(moYr))

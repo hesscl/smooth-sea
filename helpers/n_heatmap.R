@@ -11,7 +11,7 @@ sea_cl <- cl %>%
   filter(GISJOIN %in% sea_shp@data$GISJOIN) %>% #filter to KC only (db has metro area)
   mutate(listingDate = as.Date(listingDate),
          listingQtr = as.yearqtr(listingDate)) %>%
-  filter(listingQtr >= "2017 Q2", !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft),
+  filter(listingQtr >= "2017 Q1", !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft),
          cleanBeds == 1) %>% 
   filter(matchType != "Google Maps Lat/Long") %>% #no Google lat/long only geocodes
   distinct(matchAddress, matchAddress2, cleanBeds, cleanRent, cleanSqft, .keep_all = T)
