@@ -7,8 +7,8 @@ output:
     toc: true
     toc_float: true
     includes:
-      in_header: header.html
-      after_body: footer.html
+      in_header: "header.html"
+      after_body: "../footer.html"
 abstract: "Online classified ads are a key source of information about local rental housing markets. This research asks what temporal and spatial dynamics explain neighborhood variations in one-bedroom rents in Seattle, WA, and contributes a novel approach to forecasting quarterly neighborhood rent levels using Bayesian models estimated with integrated nested Laplace approximations (INLA). All models were trained on data for 2017 Q2 through 2018 Q1, with forecasts for 2018 Q2 compared against the observed-to-date data for the current quarter (i.e. 2018 Q2). The top model assumes that spatial and temporal dynamics are separable, i.e. independent of each other, and non-interactive. This spatial random-effects model with AR(1) temporal structure achieves a mean absolute error (MAE) of about $90 for the training data and $145 for the test data."
 ---
 
@@ -41,7 +41,7 @@ library(latex2exp)
 #load ACS data extract (codebook in folder)
 census <- read_csv(file = "../input/acsExtract.csv")
 censusRent <- read_csv(file = "../input/acsRent.csv")
-census <- inner_join(census, censusRent)
+census <- inner_join(census, censusRent) #1:1
 
 #read in tract shapefiles for seattle
 sea_shp <- readOGR(dsn = "../input/sea_tract_2010/sea_tract_2010.shp",
@@ -66,6 +66,8 @@ tract <- load_data()
 <br>
 <br>
 
+## Introduction
+
 Demand for rental housing units in Seattle, WA surged in the past decade, due to relative scarcity in available housing amidst a period of historic population growth. Growing shares of households are unable to buy a home short of "driving till they qualify", and among households who rent a substantial share pay 30%, if not more of their incomes on their housing costs. The rising cost of housing therefore has a direct role in neighborhood processes of "demographic inversion" like urban gentrification and suburbanizing poverty. American Community Survey data have common currency among scholars and practitioners interested in metropolitan housing markets, but neverthless possess a substantial limitation for research in tight housing markets like Seattle---that is, at least two years elapse between data collection and publication, if not more. This publication lag for ACS data prohibits analyzing any market dynamics beyond long-term trends, particularly for estimates of smaller areas of aggregation like neighborhoods where ACS uses 5-year rolling-average methods as well. While more up-to-date options for neighborhood rent data exist through privately-held companies, such data can be somewhat of a black box in their creation and may be biased towards the costs of corporate-held properties. This would-be problem for academic researchers creates an opportunity for applying web scraping methods to generate a novel data on housing availability and costs.
 
 This study aims to demonstrate why scraped rental housing listings are a valuable source of data in subject areas such as housing studies and neighborhood demography through a set of descriptive analyses and models of quarterly rent levels among census tracts in Seattle, WA. Summaries of the Craigslist data show agreement with existing sources in their distribution but do suggest higher median levels for most neighborhoods, likely given the listings' recent collection relative to other data. In a more general sense, the methods and frameworks used in this study also offer a template for efficiently collecting web data, conducting reproducible research, and publishing interactive results to GitHub. I start by briefly reviewing some background relevant to studying neighborhood rental housing. I then outline a process for automated web scraping of a rental listing source like Craigslist using a program called Helena, and compare aggregates from the collected rental listings with other data to assess rent agreement in measures. After describing the data and process, I present a set of models predicting neighborhood rent levels to understand different how different temporal and spatial structures fit the data. I conclude by discussing the promise of web data for subfields like housing studies and the value of R Markdown and GitHub for social science research. 
@@ -82,6 +84,23 @@ For-profit data sources play a role in filling the information gap about rental 
 
 ## Data
 
+### Web scraping using Helena
+
+[Helena](http://helena-lang.org) is a high-level programming language for end users to automate web scraping as a method of data collection. Users write programs in an extension for Google Chrome by demonstrating the first row of data they want to collect using clicks, form interactions and highlighting values. The extension translates an initial demonstration into a starting script written in Helena, which a user can further modify or set to run on a regular schedule. Though Helena programs collect data roughly at the speed they are recorded at, users can run multiple programs in parallel to increase the volume of data collected. Data are stored on an AWS server where users can later query either the full table of scraped data or a subset scraped within a specified number of hours. 
+
+Helena learns where features of are through the user interface (UI) rather than the underlying document object model (DOM). Though the HTML code of a site may regularly change over the course of regular data scraping, websites less frequently undergo drastic overhauls to what their users interact with. Helena also uses skip blocks to avoid re-scraping the an already-collected item. These two aspects of Helena provide its programs robustness to common headaches encountered with web scraping by default. Overall, Helena's programming-by-demonstration method reduces time needed building a scraper from scratch, giving social scientists the capacity to quickly scrape a single table of data or build ongoing data processes.
+
+For the UW team's data collection, a Helena program runs 24-hours a day and scrapes listings from the Seattle Craigslist. It is important to note that web scraping does violate Craigslist's Terms of Service, and that we are using all scraped data exclusively for academic research. For a more thorough discussion of this issue, consult page 3 of [Boeing and Waddell (2016)](https://arxiv.org/ftp/arxiv/papers/1605/1605.05397.pdf).
+
+<br>
+
+### Data Processing
+
+The key steps of any data process can be distilled into three tasks: a.) _extract_ a table of interest from a specified origin source, b.) _transform_ it to support the desire analyses and c.) _load_ the transformed data to a storage destination for future use. In the present case, a program extracts scraped listings observed since the database 
+<br>
+
+### Data Description
+
 ```{r map_point_density, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)
 if(file.exists("../../data/cl/craigslistDB.sqlite")){
@@ -92,18 +111,6 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 ![Figure 1. Map of Seattle (left), Seattle Craigslist one-bedroom listing point and 2D-density map (right).](../output/map_point_density.png)
 
 
-<br>
-
-### Web scraping with Helena
-
-Helena is a high-level programming language for end users to automate web scraping as a method of data collection. 
-<br>
-
-### Data Processing
-
-<br>
-
-### Data Description
 
 ```{r rent_lineplot, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)

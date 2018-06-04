@@ -20,7 +20,8 @@ sumCL <- cl %>%
   mutate(catSqft = fct_reorder(catSqft, cleanSqft)) %>%
   arrange(listingDate) %>%
   select(-ends_with("10")) %>%
-  filter(!is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), !is.na(matchAddress), !is.na(matchAddress2)) %>%
+  filter(!is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), !is.na(matchAddress), !is.na(matchAddress2),
+         matchType != "Google Maps Lat/Long") %>%
   distinct(matchAddress, matchAddress2, catBeds, cleanSqft, cleanRent, .keep_all = T) %>%
   mutate(listingQtr = as.yearqtr(as.Date(listingDate))) %>%
   group_by(listingQtr) %>%

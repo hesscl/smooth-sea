@@ -21,6 +21,7 @@ cl2017 <- rent_map_sea %>%
   filter(seattle==1) %>% 
   collect %>% 
   filter(listingYear >= 2017, 
+         matchType != "Google Maps Lat/Long",
          !is.na(matchAddress), !is.na(matchAddress2), !is.na(catBeds), !is.na(cleanSqft), !is.na(cleanRent),
          catBeds %in% c("0", "1", "2"), !is.na(lat) & !is.na(lng)) %>%
   distinct(matchAddress, matchAddress2, catBeds, cleanSqft, cleanRent, .keep_all = T) %>%

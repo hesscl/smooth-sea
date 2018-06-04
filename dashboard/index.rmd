@@ -3,11 +3,10 @@ title: "smooth-sea"
 output: 
   flexdashboard::flex_dashboard:
     navbar:
-       - {title: "hesscl.com", href: "http://hesscl.com", align: right}
-       - {title: "Project Home", href: "http://hesscl.com/smooth-sea/index.html", align: left} 
+       - {title: "Project Home", href: "../index.html", align: right} 
     orientation: columns
-    theme: bootstrap
-    logo: "../logo.svg"
+    theme: bootstrap 
+    source: "https://github.com/hesscl/smooth-sea/dashboard"
 ---
 
 ```{r setup, include=FALSE}
