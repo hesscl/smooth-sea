@@ -98,7 +98,7 @@ acs1B <- rent_map_acs %>%
   select(GISJOIN, data, catBeds, rent, nHU)
 
 acs2B <- rent_map_acs %>%
-  mutate(rent = AGPZE003,
+  mutate(rent = AGPZE004,
          catBeds = "2",
          data = "ACS 2012-2016",
          nHU = NA) %>%

@@ -77,6 +77,8 @@ This study demonstrates why scraped rental housing listings are a valuable sourc
 I start by briefly reviewing some background relevant to studying neighborhood rental housing. I then outline a process for automated web scraping of a rental listing source like Craigslist using a program called Helena, and compare aggregates from the collected rental listings with other data to assess rent agreement in measures. After describing the data and process, I present a set of models predicting neighborhood rent levels to understand different how different temporal and spatial structures fit the data. I conclude by discussing the promise of web data for subfields like housing studies and the value of R Markdown and GitHub for social science research. 
 
 <br>
+<hr>
+<br>
 
 ## Background
 
@@ -85,6 +87,8 @@ Existing public data are essentially limited to the American Community Survey (A
 For-profit data sources play a role in filling the information gap about rental housing costs, but can still have their own limitations. These data sources tend to rely on survey methodologies for data collection, and ask landlords in a given market to outline the average cost for units of a given bedroom size or other specification. The quality of these data therefore depend on their capacity to adequately sample housing units across all property sizes, building qualities and locations, and the "mom and pop" end of the rental market spectrum is difficult to estimate in size, let alone survey sufficiently. In exchange for providing detailed information for their database, the rental data provider may give participating landlords and property management companies access to a slice of information generated via accumulated data. These data tend to be rather opaque in their collection methodologies, with larger or corporate-owner properties most likely to appear in these data relative to independently-owned (i.e. mom and pop) rental units. 
 
 <br>
+<hr>
+<br>
 
 ## Data
 
@@ -92,10 +96,12 @@ For-profit data sources play a role in filling the information gap about rental 
 
 [Helena](http://helena-lang.org) is a high-level programming language for end users to automate web scraping as a method of data collection. Users write programs in an extension for Google Chrome by demonstrating the first row of data they want to collect using clicks, form interactions and highlighting values. The extension translates an initial demonstration into a starting script written in Helena, which a user can further modify or set to run on a regular schedule. Though Helena programs collect data roughly at the speed they are recorded at, users can run multiple programs in parallel to increase the volume of data collected. Data accumulate on a remote server (soon-to-be AWS) where users can later query either the full table of scraped data or a subset scraped within a specified number of hours. 
 
-Helena learns where features of are through the user interface (UI) rather than the underlying document object model (DOM). Though the HTML code of a site may regularly change over the course of regular data scraping, websites less frequently undergo drastic overhauls to what their users interact with. Helena also uses skip blocks to avoid re-scraping the an already-collected item. These two aspects of Helena provide its programs robustness to common headaches encountered with web scraping by default. Overall, Helena's programming-by-demonstration method reduces time needed building a scraper from scratch, giving social scientists the capacity to quickly scrape a single table of data or build ongoing data processes.
+Helena learns where features of are through the user interface (UI) rather than the underlying document object model (DOM). Though the HTML code of a site may regularly change over the course of regular data scraping, websites less frequently overhaul what their users actually interact with. Helena also uses skip blocks to avoid re-scraping the an already-collected item. These two aspects of Helena provide its programs robustness to common headaches encountered with web scraping by default. Overall, Helena's programming-by-demonstration method reduces time needed building a scraper from scratch, giving social scientists the capacity to quickly scrape a single table of data or build ongoing data processes.
 
 For the UW team's data collection, a Helena program runs 24-hours a day and scrapes listings from the Seattle Craigslist. It is important to note that web scraping does violate Craigslist's Terms of Service, and that we are using all scraped data exclusively for academic research. For a more thorough discussion of this issue, consult page 3 of [Boeing and Waddell (2016)](https://arxiv.org/ftp/arxiv/papers/1605/1605.05397.pdf).
 
+<br>
+<hr>
 <br>
 
 ### Data Processing
@@ -104,6 +110,8 @@ The key steps of any data process can be distilled into three tasks: a.) _extrac
 
 In the present case, a program extracts scraped listings observed since the data updated by sending a download request to the scraper's accumulated data in the form of a URL with a suffix indicating the number of hours that passed since the last processing. The processing routine then transforms the data by cleaning up some of the scraped fields and appending spatial information through a multi-step geocoding proces. If address information was successfully scraped from the listing metadata, the script makes a call to Google Maps Geocoding API using this listing feature and a constraint to search within Washington state. When this first step is not successful at geocoding to a specific address or cross-streets, or where there is no address in the listing metadata, we use SmartyStreet's Address Extraction API on the listing's full scraped text to see if an address was mentioned there. We are able to geocode 95\% of listings to some degree of precision, with the vast majority precise at least to Zip9 geography. All listings used in the following analyses are geocoded with precision at least to Zip9 geography. After geocoding the data and ensuring there are no duplicates among the table of new listings, the script loads the processed listings into the existing database.
 
+<br>
+<hr>
 <br>
 
 ### Data Description
@@ -148,7 +156,11 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 <hr>
 <br>
 
-Figure 3 is a line graphic indicating the Seattle-wide median rent for all sizes of rental units, with the longest set of data (Dupre+Scott) reaching back to 1997 to show long-term dynamics of Seattle rental housing costs. The first takeaway from the graphic is the large spike in rent levels following 2010, with a similar trajectory followed in the estimates from Dupre+Scott and the ACS.
+Figure 3 is a line graphic indicating agreement across data for Seattle-wide median rent (all sizes of rental units). The longest set of data (Dupre+Scott) cover 20 years and show long-term dynamics of Seattle rental housing costs in terms of contract rent. Dupre+Scott released semi-annual summaries for their 20+ unit data, so there are two data points for each year (Spring and Fall). ACS 1-Year Estimates show the median renter-occupied housing unit asking rent. Craigslist shows quarterly estimates for all listings in Seattle. 
+
+The first takeaway from the graphic is the large spike in rent levels following 2010, with a similar trajectory followed in the estimates from Dupre+Scott and the ACS. Throughout the span of Dupre+Scott and ACS data, these two indicators differ by about $100-150 at any given point, though the disagreement is at its largest at the ACS data's current endpoint of 2016. Given that the Dupre+Scott data and ACS data both sample rents from already-leased-up units (exclusively in the case of ACS), a plausible explanation for this systematic difference is that Dupre+Scott rent estimates reflect only the population of rental units in larger structures (whereas ACS is theoretically sampling rental units of all property sizes and characteristics.
+
+Only the Craigslist and Dupre+Scott are particularly useful for understanding more recent median levels for the Seattle rental housing market.
 
 ```{r rent_lineplot, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)
