@@ -59,9 +59,7 @@ ggplot(cal, aes(x = monthweek, y = weekdayf, fill = n)) +
   geom_tile(color = "white") +
   facet_grid(year~monthf) +
   theme_minimal() +
-  theme(plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm"),
-        panel.spacing = unit(.1, "lines"),
-        axis.text = element_text(size = 6),
+  theme(axis.text = element_text(size = 6),
         legend.text = element_text(size = 8),
         legend.title = element_text(size = 10),
         axis.title = element_text(size = 8),
@@ -71,5 +69,5 @@ ggplot(cal, aes(x = monthweek, y = weekdayf, fill = n)) +
   ylab("Day of Week\n") +
   labs(fill = "N Listings") +
   ggsave(filename = "../output/n_heatmap.png",
-         width = 6, height = 3)
+         width = 6, height = 4, dpi = 300)
 

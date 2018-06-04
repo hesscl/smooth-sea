@@ -68,21 +68,21 @@ tract <- load_data()
 
 ## Introduction
 
-Demand for rental housing units in Seattle, WA surged in the past decade, due to relative scarcity in available housing amidst a period of historic population growth. Substantial appreciation for almost 2 years straight raised Seattle home prices to levels where [most households are no longer able to buy a home](https://www.seattletimes.com/business/real-estate/seattle-area-homebuyers-needed-11000-pay-raise-in-past-year-to-keep-up-with-rising-prices/?utm_source=The+Seattle+Times&utm_campaign=de86e2d581-Morning_Brief_11_28_2017&utm_medium=email&utm_term=0_5beb38b61e-de86e2d581-122931741) short of "driving till they qualify". More and more households must rent to live in Seattle, and a [almost half](http://www.jchs.harvard.edu/ARH_2017_cost_burdens_by_metro) of these renter households pay 30% of their incomes on housing costs, if not more. Beyond individual households, the rising cost of housing in Seattle and in other cities has a role in neighborhood processes of "demographic inversion" like urban gentrification and [suburbanizing poverty](https://www.brookings.edu/testimonies/the-changing-geography-of-us-poverty/) too. 
+Demand for rental housing units in Seattle, WA surged in the past decade, due to relative scarcity in available housing amidst a period of historic population growth. Substantial appreciation for almost 2 years straight raised Seattle home prices to levels where [most households are no longer able to buy a home](https://www.seattletimes.com/business/real-estate/seattle-area-homebuyers-needed-11000-pay-raise-in-past-year-to-keep-up-with-rising-prices/?utm_source=The+Seattle+Times&utm_campaign=de86e2d581-Morning_Brief_11_28_2017&utm_medium=email&utm_term=0_5beb38b61e-de86e2d581-122931741) short of "driving till they qualify". More and more households must therefore rent to live in Seattle, and [almost half](http://www.jchs.harvard.edu/ARH_2017_cost_burdens_by_metro) of these renter households pay 30% of their incomes on housing costs, if not more. Given the universal need for housing, the individual dynamics related to rising housing costs have a role in shaping neighborhood processes of "demographic inversion" like urban gentrification and [suburbanizing poverty](https://www.brookings.edu/testimonies/the-changing-geography-of-us-poverty/) too. 
 
 [American Community Survey (ACS)](https://www.census.gov/programs-surveys/acs/) data have common currency among scholars and practitioners interested in metropolitan housing markets, but neverthless possess a substantial limitation for research in tight housing markets like Seattle---that is, at least two years elapse between data collection and publication, if not more. This publication lag for ACS data prohibits analyzing any market dynamics beyond long-term trends, particularly for estimates of smaller areas of aggregation like neighborhoods where ACS uses 5-year rolling-average methods as well. While more up-to-date options for neighborhood rent data exist through privately-held companies, such data can be somewhat of a black box in their creation and may be biased towards the costs of corporate-held properties. This would-be problem for academic researchers creates an opportunity for applying web scraping methods to generate a novel data on housing availability and costs.
 
-This study demonstrates why scraped rental housing listings are a valuable source of data in subject areas such as housing studies and neighborhood demography. I draw on a set of descriptive analyses and models of quarterly rent levels among census tracts in Seattle, WA for this research objective. Summaries of the Craigslist data show agreement with existing sources in their distribution but do suggest higher median levels for most neighborhoods, likely given the listings' recent collection relative to other data. The smoothing models use the panel of quarterly neighborhood estimates' spatial and temporal structure to understand the underlying generative process, finding that a combination of local smoothing and autoregression (order 1) predict future levels with an average error of about $140 or 8%.
+This study demonstrates why scraped rental housing listings are a valuable source of data in subject areas such as housing studies and neighborhood demography. I draw on a set of descriptive analyses and models of quarterly rent levels among census tracts in Seattle, WA for this research objective. Summaries of the Craigslist data show agreement with existing sources in their distribution but do suggest higher median levels for most neighborhoods, likely given the listings' recent collection relative to other data. The smoothing models use the panel of quarterly neighborhood estimates' spatial and temporal structure to understand the underlying generative process, finding that a combination of local smoothing and autoregression (order 1) predict future levels with an average error of about $140 or 8%. In a more general sense, the methods and frameworks used in this study also offer a template for efficiently collecting web data, conducting reproducible research, and publishing interactive results to GitHub. 
 
-In a more general sense, the methods and frameworks used in this study also offer a template for efficiently collecting web data, conducting reproducible research, and publishing interactive results to GitHub. I start by briefly reviewing some background relevant to studying neighborhood rental housing. I then outline a process for automated web scraping of a rental listing source like Craigslist using a program called Helena, and compare aggregates from the collected rental listings with other data to assess rent agreement in measures. After describing the data and process, I present a set of models predicting neighborhood rent levels to understand different how different temporal and spatial structures fit the data. I conclude by discussing the promise of web data for subfields like housing studies and the value of R Markdown and GitHub for social science research. 
+I start by briefly reviewing some background relevant to studying neighborhood rental housing. I then outline a process for automated web scraping of a rental listing source like Craigslist using a program called Helena, and compare aggregates from the collected rental listings with other data to assess rent agreement in measures. After describing the data and process, I present a set of models predicting neighborhood rent levels to understand different how different temporal and spatial structures fit the data. I conclude by discussing the promise of web data for subfields like housing studies and the value of R Markdown and GitHub for social science research. 
 
 <br>
 
 ## Background
 
-Existing public data are essentially limited to the American Community Survey (ACS) following the cessation of long-form decennial censuses in 2000. ACS data theoretically have two sources of error relative to the ``true'' median rent in a given overall market and to an even greater degree among neighborhood approximations like census tracts. Census sources of rental information cannot provide insight into any change in rental cost associated with newer developments becoming available (at least not until considerable time has already passed) given the temporal delay in data publication (i.e. ACS estimates are usually at least 2 years old, decennial many more). This feature of Census data is salient given newer housing units' generally higher rents and greater-than-average vacancy, both factors which lead to underestimating the present levels of rents for available housing units when either the ACS or decennial census are used as a current indicator. For already-leased rental housing units that are sampled, the temporal lag generates measurement error such that data on a given building's current asking rents may be underestimated relative to current tenants' payment levels.
+Existing public data are essentially limited to the American Community Survey (ACS) and [American Housing Survey (AHS)](https://www.census.gov/programs-surveys/ahs.html) following the cessation of long-form decennial censuses in 2000. These data theoretically have two sources of error relative to the ``true'' current median rent for a market and  neighborhood approximations like census tracts. Census sources of rental information cannot provide insight into any change in rental cost associated with newer developments becoming available (at least not until considerable time has already passed) given the temporal delay in data publication (i.e. ACS estimates are usually at least 2 years old, decennial many more). This feature of Census data is salient given newer housing units' generally higher rents and greater-than-average vacancy, both factors which lead to underestimating the present levels of rents for available housing units when either the ACS or decennial census are used as a current indicator. For already-leased rental housing units that are sampled, the temporal lag generates measurement error such that data on a given building's current asking rents may be underestimated relative to current tenants' payment levels.
 
-For-profit data sources play a role in filling the information gap about rental housing costs, though they tend to possess their own unique shortcomings. These data sources tend to rely on survey methodologies for data collection, and ask landlords in a given market to outline the average cost for units of a given bedroom size or other specification. In exchange for providing detailed information for their database, the rental data provider may give participating landlords and property management companies access to a slice of information generated via accumulated data. These data tend to be rather opaque in their collection methodologies, with larger or corporate-owner properties most likely to appear in these data relative to independently-owned (i.e. mom and pop) rental units. 
+For-profit data sources play a role in filling the information gap about rental housing costs, but can still have their own limitations. These data sources tend to rely on survey methodologies for data collection, and ask landlords in a given market to outline the average cost for units of a given bedroom size or other specification. The quality of these data therefore depend on their capacity to adequately sample housing units across all property sizes, building qualities and locations, and the "mom and pop" end of the rental market spectrum is difficult to estimate in size, let alone survey sufficiently. In exchange for providing detailed information for their database, the rental data provider may give participating landlords and property management companies access to a slice of information generated via accumulated data. These data tend to be rather opaque in their collection methodologies, with larger or corporate-owner properties most likely to appear in these data relative to independently-owned (i.e. mom and pop) rental units. 
 
 <br>
 
@@ -100,13 +100,23 @@ For the UW team's data collection, a Helena program runs 24-hours a day and scra
 
 ### Data Processing
 
-The key steps of any data process can be distilled into three tasks: a.) _extract_ a table of interest from a specified origin source, b.) _transform_ it to support the desire analyses and c.) _load_ the transformed data to a storage destination for future use. 
+The key steps of any data process can be distilled into three tasks: a.) _extract_ a table of interest from a specified origin source, b.) _transform_ it to support the desired analyses and c.) _load_ the transformed data to a storage destination for future use. 
 
 In the present case, a program extracts scraped listings observed since the data updated by sending a download request to the scraper's accumulated data in the form of a URL with a suffix indicating the number of hours that passed since the last processing. The processing routine then transforms the data by cleaning up some of the scraped fields and appending spatial information through a multi-step geocoding proces. If address information was successfully scraped from the listing metadata, the script makes a call to Google Maps Geocoding API using this listing feature and a constraint to search within Washington state. When this first step is not successful at geocoding to a specific address or cross-streets, or where there is no address in the listing metadata, we use SmartyStreet's Address Extraction API on the listing's full scraped text to see if an address was mentioned there. We are able to geocode 95\% of listings to some degree of precision, with the vast majority precise at least to Zip9 geography. All listings used in the following analyses are geocoded with precision at least to Zip9 geography. After geocoding the data and ensuring there are no duplicates among the table of new listings, the script loads the processed listings into the existing database.
 
 <br>
 
 ### Data Description
+
+We have collected `r sum(tract$nListings)` Seattle rental housing listings from Craigslist over the course of our data collection (`r min(tract$listingQtr)` to `r max(tract$listingQtr)`). Of the overall corpus of listings we've collected, `r sum(tract$n1B)` (about `r round(sum(tract$n1B)/sum(tract$nListings), 2)*100`%) were one-bedroom listings. 
+
+The following series of graphics summarize the listing data collected to date and compare rent estimates from these data to ACS data and Dupre+Scott. Wherever possible, visualizations focus on one-bedroom units to make comparisons between data for the most common unit type in Seattle. However, for Figure 2 data limitations require that the comparison is all housing units.
+
+<br>
+<hr>
+<br>
+
+Figure 1 shows a reference map of Seattle. In the right pane, each point indicates a one-bedroom listing collected at some point over our study's span. The polygons overlaid on higher-density neighborhoods around Downtown, South Lake Union and Ballard correspond to particularly strong Craigslist listing activity.
 
 ```{r map_point_density, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)
@@ -115,7 +125,15 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 }
 ```
 
-![Figure 1. Map of Seattle (left), Seattle Craigslist one-bedroom listing point and 2D-density map (right).](../output/map_point_density.png)
+![**Figure 1.** Map of Seattle (left), Seattle Craigslist one-bedroom listing point and 2D-density map (right).](../output/map_point_density.png)
+
+<br>
+<hr>
+<br>
+
+Figure 2 shows a heatmap for the time-series of one-bedroom listings per day. The grey cells indicate days where our scraper was offline. Outages were more common in the earliest phases of work, but now are relatively rare. 
+
+At the end of February we implemented a procedure to have the Helena program immediately restart scraping (i.e. re-query the available listings as a new index to work through) in order to ensure any and all listings are scraped each day. The net impact of this change is fairly evident in the time-series heatmap. We now see more temporal structure to the listing count for each day---relatively fewer listings are posted on Sundays, though this could be related to greater listing on Saturdays (i.e. everything is posted at the beginning of the weekend in order to maximize weekend housing searchers' likelihoods of seeing it). Perhaps unsurprisingly, there were dips in listing activity on prominent holiday's like New Year's Day, Easter and Memorial Day.
 
 ```{r n_heatmap, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)
@@ -124,9 +142,13 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 }
 ```
 
-![Figure 2. Heatmap of N Seattle Craigslist one-bedroom listings scraped per day time-series.](../output/n_heatmap.png)
+![**Figure 2.** Heatmap of N Seattle Craigslist one-bedroom listings scraped per day time-series.](../output/n_heatmap.png)
 
+<br>
+<hr>
+<br>
 
+Figure 3 is a line graphic indicating the Seattle-wide median rent for all sizes of rental units, with the longest set of data (Dupre+Scott) reaching back to 1997 to show long-term dynamics of Seattle rental housing costs. The first takeaway from the graphic is the large spike in rent levels following 2010, with a similar trajectory followed in the estimates from Dupre+Scott and the ACS.
 
 ```{r rent_lineplot, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)
@@ -135,9 +157,11 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 }
 ```
 
-![Figure 3. Time-series of median rent (all bedroom sizes) for Seattle, 1997-2018. Historical values adjusted with CPI; Craigslist estimates are quarterly, Dupre+Scott are semi-annual and ACS are annual (i.e. respective 1-Year Estimates for each year period).](../output/rent_lineplot.png)
+![**Figure 3.** Time-series of median rent (all bedroom sizes) for Seattle, 1997-2018. Historical values adjusted with CPI; Craigslist estimates are quarterly, Dupre+Scott are semi-annual and ACS are annual (i.e. respective 1-Year Estimates for each year period).](../output/rent_lineplot.png)
 
-
+<br>
+<hr>
+<br>
 
 ```{r rent_map_across, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)
@@ -146,9 +170,11 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 }
 ```
 
-![Figure 4. Chloropleth map of neighborhood 1-bedroom rents across Craigslist, Dupre+Scott and ACS 2012-2016 5-Year Estimates. Craigslist represents median asking rent among all one-bedroom listings, Dupre+Scott consists of median contract rents among one-bedroom units in 20+ unit properties, while ACS releases median gross (asking) rents for all one-bedroom renter-occupied housing units sampled.](../output/rent_map_across_1B.png)
+![**Figure 4.** Chloropleth map of neighborhood 1-bedroom rents across Craigslist, Dupre+Scott and ACS 2012-2016 5-Year Estimates. Craigslist represents median asking rent among all one-bedroom listings, Dupre+Scott consists of median contract rents among one-bedroom units in 20+ unit properties, while ACS releases median gross (asking) rents for all one-bedroom renter-occupied housing units sampled.](../output/rent_map_across_1B.png)
 
-
+<br>
+<hr>
+<br>
 
 ```{r rent_scatter_across, echo=FALSE, message=FALSE, warning=FALSE}
 #determine config (dev or github)
@@ -157,12 +183,16 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 }
 ```
 
-![Figure 5. Scatter plot of neighborhood 1-bedroom rents across Craigslist and Dupre+Scott. Craigslist represents median asking rent among all one-bedroom listings, Dupre+Scott consists of median contract rents among one-bedroom units in 20+ unit properties.](../output/rent_scatter_across_1B.png)
+![**Figure 5.** Scatter plot of neighborhood 1-bedroom rents across Craigslist and Dupre+Scott. Craigslist represents median asking rent among all one-bedroom listings, Dupre+Scott consists of median contract rents among one-bedroom units in 20+ unit properties.](../output/rent_scatter_across_1B.png)
 
 
 <br>
 
 ## Models
+
+<br>
+
+## Results
 
 - Need to build tables from output
 - Need to do write up for tables
@@ -355,13 +385,9 @@ fit_stats <- sea_df %>%
   dplyr::select(train_test, ends_with("_rmse"), ends_with("_mae"))
 ```
 
-`r knitr::kable(fit_stats %>% select(ends_with("rmse")))`
+`r knitr::kable(fit_stats %>% select(train_test, ends_with("rmse")))`
 
-`r knitr::kable(fit_stats %>% select(ends_with("mae")))`
-
-<br>
-
-## Results
+`r knitr::kable(fit_stats %>% select(train_test, ends_with("mae")))`
 
 <br>
 
@@ -370,3 +396,4 @@ fit_stats <- sea_df %>%
 <br>
 
 ## References
+

@@ -6,7 +6,7 @@ output:
        - {title: "Project Home", href: "../index.html", align: right} 
     orientation: columns
     theme: bootstrap 
-    source: "https://github.com/hesscl/smooth-sea/dashboard"
+    source: "https://github.com/hesscl/smooth-sea/tree/master/dashboard"
 ---
 
 ```{r setup, include=FALSE}

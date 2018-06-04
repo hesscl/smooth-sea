@@ -17,7 +17,7 @@ load_data <- function(){
                     cleanBeds, cleanRent, cleanSqft) %>% #SELECT these columns
       mutate(listingDate = as.Date(listingDate),
              listingQtr = as.yearqtr(listingDate)) %>%
-      filter(cleanBeds %in% c(0, 1, 2, 3), listingQtr >= "2017 Q2") %>%
+      filter(listingQtr >= "2017 Q2") %>%
       group_by(GISJOIN, listingQtr) %>% #group listings by tract, qtr within tract
       summarize(nListings = n(),
                 n1B = sum(cleanBeds == 1),

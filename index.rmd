@@ -25,7 +25,7 @@ The goal of this research is to understand the dynamics of Seattle neighborhoods
 
 [Results dashboard](./dashboard/index.html) for working paper's model diagnostics and forecasts
 
-[GitHub Repository](https://github.com/hesscl/smooth-sea/) with source code for manuscript and results dashboard
+[GitHub repository](https://github.com/hesscl/smooth-sea/) with source code for manuscript and results dashboard
 
 <br>
 
@@ -37,7 +37,7 @@ The goal of this research is to understand the dynamics of Seattle neighborhoods
 
 [flexdashboard](https://rmarkdown.rstudio.com/flexdashboard/index.html) - Easy interactive dashboards for R
 
-[plot.ly](https://plot.ly/) - translate ggplot() objects to JavaScript-based htmlwidgets
+[plot.ly](https://plot.ly/) - translate ggplot() objects to JavaScript htmlwidgets
 
 [GitHub Pages](https://pages.github.com/) - Publish static web pages with repositories
 
