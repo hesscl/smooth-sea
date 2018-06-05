@@ -14,7 +14,7 @@ scatter_cl <- scatter_sea %>%
   filter(seattle==1) %>%
   collect %>% #bring db query into memory
   filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), 
-         GISJOIN %in% sea_shp@data$GISJOIN, matchType != "Google Maps Lat/Long") %>% #only listings with valid Bed/Rent, seattle tracts
+         GISJOIN %in% tract2000@data$GISJOIN, matchType != "Google Maps Lat/Long") %>% #only listings with valid Bed/Rent, seattle tracts
   distinct(cleanBeds, cleanRent, cleanSqft, matchAddress, 
            matchAddress2, .keep_all = T) %>% #dedupe to unique address-bed-rent combos
   dplyr::select(listingYear, listingDate, GISJOIN, seattle, matchAddress, matchType, 
@@ -61,12 +61,15 @@ cl2017 <- scatter_cl %>%
   #filter(nHU >= 15) %>%
   select(GISJOIN, clRent, nHU)
 
-across2017 <- left_join(cl2017, ds2017)
+across2017 <- left_join(tract2000@data, cl2017)
+across2017 <- left_join(across2017, ds2017)
 pal <- brewer.pal(3, "Purples")
 
 ggplot(across2017, aes(x = dsRent, y = clRent, size = nHU)) + 
   geom_point() +
   geom_abline(slope = 1, intercept = 0) +
+  geom_smooth(show.legend = FALSE, se=FALSE, linetype = 5, 
+              color = viridis(3, begin = .25, option = "A")[1], lwd = 1.25) +
   theme_minimal() +
   coord_cartesian() +
   scale_x_continuous(limits = c(800, 2500), labels = scales::dollar) +
@@ -76,4 +79,4 @@ ggplot(across2017, aes(x = dsRent, y = clRent, size = nHU)) +
   ylab("Craigslist 2017-2018 Median 1B Rent\n") +
   labs(size = "N Craigslist\nlistings") +
   ggsave(file = "../output/rent_scatter_across_1B.png",
-         dpi = 300, width = 6, height = 4)
+         width = 6, height = 4, dpi = 300)

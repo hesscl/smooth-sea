@@ -138,7 +138,7 @@ ggplot(tract_f %>% filter(catBeds == "1 Bedroom"), aes(x = long, y = lat, group 
   geom_polygon(data = tract2010_bg, aes(x = long, y = lat, group = group), 
                color = "grey90", fill = "grey70", lwd = .15) +
   geom_polygon(color = "grey90", lwd = .15) +
-  scale_fill_viridis_c(labels = scales::dollar, na.value = "grey70") +
+  scale_fill_viridis_c(labels = scales::dollar, na.value = "grey70", option = "A") +
   coord_quickmap() +
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
@@ -147,7 +147,8 @@ ggplot(tract_f %>% filter(catBeds == "1 Bedroom"), aes(x = long, y = lat, group 
         strip.background = element_blank(),
         strip.text = element_text(size = 14),
         legend.title = element_text(size = 14),
-        legend.text = element_text(size = 12)) +
+        legend.text = element_text(size = 12),
+        legend.key.width = unit(.1, "inch")) +
   labs(fill = "Asking Rent") +
   ggsave(filename = "../output/rent_map_across_1B.png",
-         width = 8, height = 4, dpi = 300)
+         width = 8, height = 4, dpi = 500)

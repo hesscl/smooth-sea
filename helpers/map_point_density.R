@@ -30,16 +30,19 @@ blank <- qmplot(lng, lat, data = map_cl, maptype = "toner-lite", geom = "blank")
 with_points <- qmplot(lng, lat, data = map_cl, maptype = "toner-lite", darken = .50, legend = "bottom") +
   stat_density_2d(aes(fill = ..level..), geom = "polygon",
                   alpha = .75, color = NA, size = .05) +
-  scale_fill_viridis_c("1B Listings") +
+  scale_fill_viridis_c("1B Listings", option = "A") +
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank(),
         legend.text = element_text(angle = 45, vjust = .8),
+        legend.key.size = unit(.1, "inch"),
         panel.background = element_blank(),
-        strip.background = element_blank())
+        strip.background = element_blank()) +
+  guides(fill = guide_colourbar(barwidth = 7,
+                              label.position = "bottom"))
 
 blank + with_points +
   ggsave(filename = "../output/map_point_density.png",
-         width = 5, height = 5, units = "in", dpi = 300)
+         width = 6, height = 5.5, units = "in", dpi = 500)
 
 

@@ -104,7 +104,7 @@ sumRent$dataSrc <- factor(sumRent$dataSrc, levels = levels(sumRent$dataSrc)[c(2,
 ggplot(sumRent, aes(x = moYr, y = Rent, group = dataSrc, color = dataSrc, shape = dataSrc)) +
   geom_line(lwd = 1.0, alpha = .5) +
   geom_point(size = 1.5) +
-  scale_color_viridis_d(begin = .1, end = .9) +
+  scale_color_viridis_d(begin = .2, end = .8, option = "A") +
   scale_y_continuous(labels = scales::dollar) +
   scale_x_date(limits = c(min(sumRent$moYr), max(sumRent$moYr))) +
   theme_minimal() +
@@ -113,4 +113,4 @@ ggplot(sumRent, aes(x = moYr, y = Rent, group = dataSrc, color = dataSrc, shape 
   labs(color = "Data Source",
        shape = "Data Source") +
   ggsave(file = "../output/rent_lineplot.png",
-         device = "png", width = 6, height = 4)
+         device = "png", width = 6, height = 4, dpi = 500)

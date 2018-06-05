@@ -53,21 +53,23 @@ cal<-plyr::ddply(cal,plyr::.(yearmon),transform,monthweek=1+week-min(week))
 
 #make the heatmap
 ggplot(cal, aes(x = monthweek, y = weekdayf, fill = n)) +
-  scale_fill_viridis_c(na.value = "grey80", direction = 1) +
+  scale_fill_viridis_c(na.value = "grey80", direction = 1, option = "A") +
   scale_x_continuous(breaks = c(1, 2, 3, 4)) +
   scale_size(range=c(5,20))+
   geom_tile(color = "white") +
   facet_grid(year~monthf) +
   theme_minimal() +
   theme(axis.text = element_text(size = 6),
-        legend.text = element_text(size = 8),
-        legend.title = element_text(size = 10),
+        legend.key.size = unit(.1, "inch"),
+        legend.position = "bottom",
         axis.title = element_text(size = 8),
         strip.text = element_text(size = 8),
         panel.grid = element_blank()) +
+  guides(fill = guide_colourbar(barwidth = 11,
+                                label.position = "bottom")) +
   xlab("\nWeek of Month") +
   ylab("Day of Week\n") +
-  labs(fill = "N Listings") +
+  labs(fill = "1B Listings") +
   ggsave(filename = "../output/n_heatmap.png",
-         width = 6, height = 4, dpi = 300)
+         width = 6, height = 3, dpi = 500)
 
