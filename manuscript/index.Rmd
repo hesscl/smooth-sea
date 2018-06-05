@@ -1,6 +1,6 @@
 ---
 title: "Estimating Neighborhood Rents with Scraped Data"
-author: "Chris Hess"
+author: "Chris Hess and Sarah Chasins"
 date: "June 2, 2018"
 output: 
   html_document:
@@ -69,11 +69,11 @@ tract <- load_data()
 
 ## Introduction
 
-Demand for rental housing units in Seattle, WA surged in the past decade, due to relative scarcity in available housing amidst a period of historic population growth. Substantial appreciation for almost 2 years straight raised Seattle home prices to levels where [most households are no longer able to buy a home](https://www.seattletimes.com/business/real-estate/seattle-area-homebuyers-needed-11000-pay-raise-in-past-year-to-keep-up-with-rising-prices/?utm_source=The+Seattle+Times&utm_campaign=de86e2d581-Morning_Brief_11_28_2017&utm_medium=email&utm_term=0_5beb38b61e-de86e2d581-122931741) short of "driving till they qualify". More and more households must therefore rent to live in Seattle, and [almost half](http://www.jchs.harvard.edu/ARH_2017_cost_burdens_by_metro) of these renter households pay 30% of their incomes on housing costs, if not more. Given the universal need for housing, the individual dynamics related to rising housing costs have a role in shaping neighborhood processes of "demographic inversion" like urban gentrification and [suburbanizing poverty](https://www.brookings.edu/testimonies/the-changing-geography-of-us-poverty/) too. 
+Demand for rental housing units in Seattle, WA surged in the past decade, due to relative scarcity in available housing amidst a period of [historic population growth](https://www.seattletimes.com/seattle-news/data/114000-more-people-seattle-now-this-decades-fastest-growing-big-city-in-all-of-united-states/){target="_blank"}. Substantial appreciation for almost 2 years straight raised Seattle home prices to levels where [most households are no longer able to buy a home](https://www.seattletimes.com/business/real-estate/seattle-area-homebuyers-needed-11000-pay-raise-in-past-year-to-keep-up-with-rising-prices/?utm_source=The+Seattle+Times&utm_campaign=de86e2d581-Morning_Brief_11_28_2017&utm_medium=email&utm_term=0_5beb38b61e-de86e2d581-122931741){target="_blank"} short of "driving till they qualify". More and more households must therefore rent to live in Seattle, and [almost half](http://www.jchs.harvard.edu/ARH_2017_cost_burdens_by_metro){target="_blank"} of these renter households pay 30% of their incomes on housing costs, if not more. Given the universal need for housing, the individual dynamics related to rising housing costs have a role in shaping neighborhood processes of "demographic inversion" like urban gentrification and [suburbanizing poverty](https://www.brookings.edu/testimonies/the-changing-geography-of-us-poverty/){target="_blank"} too. 
 
-Census data have common currency among scholars and practitioners interested in metropolitan housing markets, but neverthless possess a substantial limitation for research in tight housing markets like Seattle---that is, at least two years elapse between data collection and publication, if not more. This publication lag for these data prohibits analyzing market dynamics beyond long-term trends, particularly for smaller areas of aggregation like neighborhoods where the estimate may be an average of survey responses from a 5 year period. While more up-to-date options for neighborhood rent data exist through privately-held companies, such data can be somewhat of a black box in their creation and may be biased towards the costs of corporate-held properties. This would-be problem for academic researchers creates an opportunity for applying web scraping methods to generate a novel data on housing availability and costs.
+Census data have common currency among scholars and practitioners interested in metropolitan housing markets, but neverthless possess a substantial limitation for research in tight housing markets like Seattle---that is, at least two years elapse between data collection and publication, if not more. This publication lag prohibits analyzing market dynamics beyond long-term trends, particularly for smaller areas of aggregation like neighborhoods where the estimate may be an average of survey responses from a 5 year period. While more up-to-date options for neighborhood rent data exist through privately-held companies, such data can be somewhat of a black box in their creation and may be biased towards the costs of corporate-held properties. This would-be problem for academic researchers creates an opportunity for applying web scraping methods to generate a novel data on housing availability and costs.
 
-This study demonstrates why scraped rental housing listings are a valuable source of data in subject areas such as housing studies and neighborhood demography. I draw on a set of descriptive analyses and models of quarterly rent levels among census tracts in Seattle, WA for this research objective. Summaries of the Craigslist data show agreement with existing sources in their distribution but do suggest higher median levels for most neighborhoods, likely given the listings' recent collection relative to other data. The models use a quarterly panel of observed neighborhood median one-bedroom rents and produce temporally and spatially smoothed predictions about neighborhood rent levels. The best model specification in terms of forecasting Q2 2018 based on Q1 2017 and Q1 2018 has a combination of local spatial smoothing and autoregression (order 1), with an average forecast error of about $140 or 8% for what. In a more general sense, the methods and frameworks used in this study also offer a template for efficiently collecting web data, conducting reproducible research, and publishing interactive results to GitHub. 
+This study demonstrates why scraped rental housing listings are a valuable source of data in subject areas such as housing studies and neighborhood demography. I draw on a set of descriptive analyses and models of quarterly rent levels among census tracts in Seattle, WA for this research objective. Summaries of the Craigslist data show agreement with existing sources in their distribution but do suggest higher median levels for most neighborhoods, likely given the listings' recent collection relative to other data. The models use a quarterly panel of observed neighborhood median one-bedroom rents and produce temporally- and spatially-smoothed predictions about neighborhood rent levels. The best model specification in terms of forecasting Q2 2018 based on Q1 2017 through Q1 2018 has a combination of local spatial smoothing and autoregression (order 1), with an average forecast error of about $140 or 8% relative to the median neighborhood. In a more general sense, the methods and frameworks used in this study also offer a template for efficiently collecting web data, conducting reproducible research, and publishing interactive results to GitHub. 
 
 I start by briefly reviewing some background relevant to studying neighborhood rental housing. I then outline a process for automated web scraping of a rental listing source like Craigslist using a program called Helena, and compare aggregates from the collected rental listings with other data to assess rent agreement in measures. After describing the data and process, I present a set of models predicting neighborhood rent levels to understand different how different temporal and spatial structures fit the data. I conclude by discussing the promise of web data for subfields like housing studies and the value of R Markdown and GitHub for social science research. 
 
@@ -83,7 +83,7 @@ I start by briefly reviewing some background relevant to studying neighborhood r
 
 ## Background
 
-Existing public data are essentially limited to the [American Community Survey (ACS)](https://www.census.gov/programs-surveys/acs/) and [American Housing Survey (AHS)](https://www.census.gov/programs-surveys/ahs.html) following the cessation of long-form decennial censuses in 2000. These data theoretically have two sources of error relative to the ``true'' current median rent for a market and  neighborhood approximations like census tracts. Census sources of rental information cannot provide insight into any change in rental cost associated with newer developments becoming available (at least not until considerable time has already passed) given the temporal delay in data publication (i.e. ACS estimates are usually at least 2 years old, decennial many more). This feature of Census data is salient given newer housing units' generally higher rents and greater-than-average vacancy, both factors which lead to underestimating the present levels of rents for available housing units when either the ACS or decennial census are used as a current indicator. For already-leased rental housing units that are sampled, the temporal lag generates measurement error such that data on a given building's current asking rents may be underestimated relative to current tenants' payment levels.
+Existing public data are essentially limited to the [American Community Survey (ACS)](https://www.census.gov/programs-surveys/acs/) and [American Housing Survey (AHS)](https://www.census.gov/programs-surveys/ahs.html){target="_blank"} following the cessation of long-form decennial censuses in 2000. These data theoretically have two sources of error relative to the "true"" current median rent for a market and neighborhood approximations like census tracts. Census sources of rental information cannot provide insight into any change in rental cost associated with newer developments becoming available (at least not until considerable time has already passed) given the temporal delay in data publication. This feature of Census data is salient given newer housing units' generally higher rents and greater-than-average vacancy, both factors which lead to underestimating the present levels of rents for available housing units when either the ACS or decennial census are used as a current indicator. For already-leased rental housing units that are sampled, the temporal lag generates measurement error such that data on a given building's current asking rents may be underestimated relative to current tenants' payment levels.
 
 For-profit data sources play a role in filling the information gap about rental housing costs, but can still have their own limitations. These data sources tend to rely on survey methodologies for data collection, and ask landlords in a given market to outline the average cost for units of a given bedroom size or other specification. The quality of these data therefore depend on their capacity to adequately sample housing units across all property sizes, building qualities and locations, and the "mom and pop" end of the rental market spectrum is difficult to estimate in size, let alone survey sufficiently. In exchange for providing detailed information for their database, the rental data provider may give participating landlords and property management companies access to a slice of information generated via accumulated data. These data tend to be rather opaque in their collection methodologies, with larger or corporate-owner properties most likely to appear in these data relative to independently-owned (i.e. mom and pop) rental units. 
 
@@ -95,11 +95,11 @@ For-profit data sources play a role in filling the information gap about rental 
 
 ### Web Scraping using Helena
 
-[Helena](http://helena-lang.org) is a high-level programming language for end users to automate web scraping as a method of data collection. Users write programs in an extension for Google Chrome by demonstrating the first row of data they want to collect using clicks, form interactions and highlighting values. The extension translates an initial demonstration into a starting script written in Helena, which a user can further modify or set to run on a regular schedule. Though Helena programs collect data roughly at the speed they are recorded at, users can run multiple programs in parallel to increase the volume of data collected. Data accumulate on a remote server (soon-to-be AWS) where users can later query either the full table of scraped data or a subset scraped within a specified number of hours. 
+[Helena](http://helena-lang.org){target="_blank"} is a high-level programming language aimed at helping end users automate web scraping as a method of data collection. Users write programs in an extension for Google Chrome by demonstrating the first row of data they want to collect using clicks, form interactions and highlighting values. The extension translates an initial demonstration into a starting script written in Helena, which a user can further modify or set to run on a regular schedule. Though Helena programs collect data roughly at the speed they are recorded at, users can run multiple programs in parallel to increase the volume of data collected. Data accumulate on a remote server (soon-to-be AWS) where users can later query either the full table of scraped data or a subset scraped within a specified number of hours. 
 
 Helena learns where features of are through the user interface (UI) rather than the underlying document object model (DOM). Though the HTML code of a site may regularly change over the course of regular data scraping, websites less frequently overhaul what their users actually interact with. Helena also uses skip blocks to avoid re-scraping the an already-collected item. These two aspects of Helena provide its programs robustness to common headaches encountered with web scraping by default. Overall, Helena's programming-by-demonstration method reduces time needed building a scraper from scratch, giving social scientists the capacity to quickly scrape a single table of data or build ongoing data processes.
 
-For the UW team's data collection, a Helena program runs 24-hours a day and scrapes listings from the Seattle Craigslist. It is important to note that web scraping does violate Craigslist's Terms of Service, and that we are using all scraped data exclusively for academic research. For a more thorough discussion of this issue, consult page 3 of [Boeing and Waddell (2016)](https://arxiv.org/ftp/arxiv/papers/1605/1605.05397.pdf).
+For the UW team's data collection, a Helena program runs 24-hours a day and scrapes listings from the Seattle Craigslist. It is important to note that web scraping does violate Craigslist's Terms of Service, and that we are using all scraped data exclusively for academic research. For a more thorough discussion of this issue, consult page 3 of [Boeing and Waddell (2016)](https://arxiv.org/ftp/arxiv/papers/1605/1605.05397.pdf){target="_blank"}.
 
 <br>
 <hr>
@@ -119,7 +119,7 @@ In the present case, a program extracts scraped listings observed since the data
 
 We have collected `r sum(tract$nListings)` Seattle rental housing listings from Craigslist over the course of our data collection (`r min(tract$listingQtr)` to `r max(tract$listingQtr)`). Among the overall listings we've collected, `r sum(tract$n1B)` (about `r round(sum(tract$n1B)/sum(tract$nListings), 2)*100`%) were one-bedroom listings. 
 
-The following series of graphics summarize the listing data collected to date and compare rent estimates from these data to ACS data and Dupre+Scott. In an attempt to compare summaries about like rental units as much as possible, visualizations focus on one-bedroom units in all but one instance. One-bedroom units are tied with the combined share of two and three bedroom units for the [most common unit bedroom size](https://factfinder.census.gov/bkmk/table/1.0/en/ACS/16_1YR/S2504/1600000US5363000) in Seattle according to 2016 ACS data. For Figure 2, data limitations require that the comparison is all housing units since ACS only recently (i.e. 2015-2016) started publishing bedroom-specific rent levels.
+The following series of graphics summarize the listing data collected to date and compare rent estimates from these data to ACS data and Dupre+Scott. In an attempt to compare summaries about like rental units as much as possible, visualizations focus on one-bedroom units in all but one instance. One-bedroom units are tied with the combined share of two and three bedroom units for the [most common unit bedroom size](https://factfinder.census.gov/bkmk/table/1.0/en/ACS/16_1YR/S2504/1600000US5363000){target="_blank"} in Seattle according to 2016 ACS data. For Figure 2, data limitations require that the comparison is all housing units since ACS only recently (i.e. 2015-2016) started publishing bedroom-specific rent levels.
 
 <br>
 <hr>
@@ -186,7 +186,7 @@ However, by the final point of Dupre+Scott's series (Fall 2017, corresponding to
 <hr>
 <br>
 
-The focus of the data description now turns towards estimating median rents for specific neighborhoods. While zip codes, unofficial City neighborhoods and even arbitrary grid geographies can all be used to aggregate micro-data about rental housing, we compare census tract estimates because they roughly approximate neighborhood-size units and can be linked with a variety of other data in Seattle and more generally. The following links provide reference maps for Seattle Census tracts ([2000](https://www.seattle.gov/Documents/Departments/OPCD/Demographics/GeographicFilesandMaps/2000CensusSeattleTractMap.pdf) and [2010](https://www.seattle.gov/Documents/Departments/OPCD/Demographics/GeographicFilesandMaps/2010CensusTractsandZipCodeBoundaries.pdf))
+The focus of the data description now turns towards estimating median rents for specific neighborhoods. While zip codes, unofficial City neighborhoods and even arbitrary grid geographies can all be used to aggregate micro-data about rental housing, we compare census tract estimates because they roughly approximate neighborhood-size units and can be linked with a variety of other data in Seattle and more generally. The following links provide reference maps for Seattle Census tracts ([2000](https://www.seattle.gov/Documents/Departments/OPCD/Demographics/GeographicFilesandMaps/2000CensusSeattleTractMap.pdf){target="_blank"} and [2010](https://www.seattle.gov/Documents/Departments/OPCD/Demographics/GeographicFilesandMaps/2010CensusTractsandZipCodeBoundaries.pdf){target="_blank"})
 
 In the following graphic, the left most pane shows median one-bedroom asking rent estimates using data collected from Craigslist in 2017-2018. The middle pane shows Dupre+Scott tract median 1B contract rent estimates for one-bedrooms in 20+ unit apartment structures according to their September 2017 (Fall) survey of local landlords and property managers. These data were only available in 2000 Census geography, so the neighborhood units differ slightly (124 tracts versus 134 tracts) in this map compared to the other two. Though less than ideal, this limitation does not drastically alter the comparison between data.  Finally, on the right are ACS 2012-2016 5-Year Estimates (the most recent ACS small-area data product available). In all map panes, grey cells denote missing values.
 
@@ -226,7 +226,7 @@ if(file.exists("../../data/cl/craigslistDB.sqlite")){
 
 <br>
 
-An alternative explanation fpr the difference between measures comes in considering the units these properties are sampling from in a given neighborhood. The greater difference between the measures among lower-rent neighborhoods (with Craigslist estimating these as more expensive than Dupre+Scott) provides some evidence for this theory. These tracts are found towards the North and South edges of the city, and generally are more residential neighborhoods where 20+ unit apartment complexes are not the entire stock of rental unit properties. In these tracts, Craigslist has a non-zero probability of sampling from any larger building but also small houses, duplex/triplexes, mother-in-law suites and recently, [Accessory Dwelling Units (ADUs)](http://www.seattle.gov/DPD/Publications/CAM/cam116a.pdf). 
+An alternative explanation fpr the difference between measures comes in considering the units these properties are sampling from in a given neighborhood. The greater difference between the measures among lower-rent neighborhoods (with Craigslist estimating these as more expensive than Dupre+Scott) provides some evidence for this theory. These tracts are found towards the North and South edges of the city, and generally are more residential neighborhoods where 20+ unit apartment complexes are not the entire stock of rental unit properties. In these tracts, Craigslist has a non-zero probability of sampling from any larger building but also small houses, duplex/triplexes, mother-in-law suites and recently, [Accessory Dwelling Units (ADUs)](http://www.seattle.gov/DPD/Publications/CAM/cam116a.pdf){target="_blank"}. 
 
 To the extent that these smaller property units may tend to be newer, larger in housing unit square footage or offer added amenities, the true value of rent for the neighborhood will be higher than what it is estimated at using 20+ unit properties alone. Similarly, the more that smaller properties account for the overall population of rental housing units, the more likely that higher values indicated in Craigslist are not erroneous but instead reflective of a broader set of residential units.
 
@@ -234,9 +234,9 @@ To the extent that these smaller property units may tend to be newer, larger in 
 
 ## Models
 
-The following models learn from the Craigslist data accumulated up till the prior quarter (i.e. `r as.yearqtr(Sys.Date())-1`) to accomplish a few different goals. The most prominent goal is to use the panel data's temporal and spatial structure to understand variation in rent levels over time and across space. A secondary goal is to forecast the Seattle neighborhood rent surface for the current quarter. Finally, the following models allow for relatively straightforward imputation of missing values based on time period and the rent values of proximate tracts (though there are only two tracts where we have never observed a one-bedroom listing). 
+The following models learn from Craigslist data accumulated up till the prior quarter (i.e. `r as.yearqtr(Sys.Date())-1`) to accomplish a few different goals. The most prominent goal is to use the panel data's temporal and spatial structure to understand variation in rent levels over time and across space. A secondary goal is to forecast the Seattle neighborhood rent surface for the current quarter. Finally, the following models allow for relatively straightforward imputation of missing values based on time period and the rent values of proximate tracts. 
 
-I assume that the log of the median one-bedroom rent for Seattle neighborhoods is normally distributed and estimate the posterior distribution of parameters $\theta_{it}$ using [integrated nested Laplace approximations (INLA)](https://folk.ntnu.no/hrue/r-inla.org/papers/inla-rss.pdf) with the default, weakly-informative priors for all random-effects.
+I assume that the log of the median one-bedroom rent for Seattle neighborhoods is normally distributed and estimate the posterior distribution of parameters $\theta_{it}$ using [integrated nested Laplace approximations (INLA)](https://folk.ntnu.no/hrue/r-inla.org/papers/inla-rss.pdf){target="_blank"} with the default, weakly-informative priors for all random-effects. I choose to log the dependent variable because all values are positive and this transformation improves model fit.
 
 Formally, models assume:
 
@@ -244,21 +244,21 @@ $log(Y_{it})|\theta_{it} \sim \mbox{Normal}(\theta_{it})$ with:
 
 Model                    | Abbr.   | Formula
 ------------------------ | ------- | ----------------------------------------------
-Fixed Intercept          | int     | $\theta_{it} = \beta_0 + Qtr$
-Non-Spatial              | ns      | $\theta_{it} = \beta_0 + \epsilon_i + Qtr$
-Non-Spatial AR(1)        | nsar1   | $\theta_{it} = \beta_0 + \epsilon_t + \epsilon_{t-1} + \epsilon_i$
-BYM Spatial AR(1)        | bym     | $\theta_{it} = \beta_0 + \epsilon_t + \epsilon_{t-1} + \epsilon_i + S_i.$
-BYM Spatiotemporal AR(1) | spt     | $\theta_{it} = \beta_0 + \epsilon_t + \epsilon_{t-1} + \epsilon_i + S_i. + \epsilon_{it}$
+Fixed Intercept          | `int`     | $\theta_{it} = \beta_0 + Qtr$
+Non-Spatial              | `ns`      | $\theta_{it} = \beta_0 + \epsilon_i + Qtr$
+Non-Spatial AR(1)        | `nsar1`  | $\theta_{it} = \beta_0 + \epsilon_t + \epsilon_{t-1} + \epsilon_i$
+BYM Spatial AR(1)        | `bym `    | $\theta_{it} = \beta_0 + \epsilon_t + \epsilon_{t-1} + \epsilon_i + S_i.$
+BYM Spatiotemporal AR(1) | `spt`     | $\theta_{it} = \beta_0 + \epsilon_t + \epsilon_{t-1} + \epsilon_i + S_i. + \epsilon_{it}$
 
-The Fixed Intercept model (int) uses fixed effects for quarters only. The Non-Spatial (ns) model adds random noise (i.i.d.) tract random-effects. The Non-Spatial AR(1) model (nsar1) uses AR(1) process to model the temporal dynamics (formally, $\epsilon_1 \sim \mbox{Normal}(0, (\tau(1-\rho^2))^{-1}))$ where $\epsilon_t = \rho x_{t-1} + \epsilon_t$). This model includes a random noise term for each quarter too.
+The Fixed Intercept model (`int`) uses fixed effects for quarters only. The Non-Spatial (`ns`) model adds random noise (i.i.d.) tract random-effects. The Non-Spatial AR(1) model (`nsar1`) uses AR(1) process to model the temporal dynamics (formally, $\epsilon_1 \sim \mbox{Normal}(0, (\tau(1-\rho^2))^{-1}))$ where $\epsilon_t = \rho x_{t-1} + \epsilon_t$). This model includes a random noise term for each quarter too.
 
-The BYM Spatial with AR(1) is the [Besags-York-Mollie (1991)](https://link.springer.com/article/10.1007/BF00116466) intrinsic conditional autoregressive spatial model with AR(1) and exchangeable hyperparameters for the panel's temporal structure. The random-effect $S_i$ is assumed to come from a normal distribution whose mean is the mean of the neighbors' random effects and variance proportional to the number of neighbors (formally, $S_i|S_j, j \in ne(i) ~ \mbox{Normal}(\bar{S_i}, \frac{\sigma^{2}_s}{m_j})$. Lastly, the BYM Spatiotemporal AR(1) (spt) adds an exchangeable random-effect for each period to allow for area-specific deviations in time trends.
+The BYM Spatial with AR(1) is the [Besags-York-Mollie (1991)](https://link.springer.com/article/10.1007/BF00116466){target="_blank"} intrinsic conditional autoregressive spatial model with AR(1) and exchangeable hyperparameters for the panel's temporal structure (referred to as `bym` using shorthand). The random-effect $S_i$ is assumed to come from a normal distribution whose mean is the mean of the neighbors' random effects and variance proportional to the number of neighbors (formally, $S_i|S_j, j \in ne(i) ~ \mbox{Normal}(\bar{S_i}, \frac{\sigma^{2}_s}{m_j})$. Lastly, the BYM Spatiotemporal AR(1) (`spt`) adds an exchangeable random-effect for each period to allow for area-specific deviations in time trends.
 
 The space and time smoothing models used in this section partially pool the data (e.g. the same observation at different points in time, a tract's neighboring units) to measure the degree of variation across different quarters and at different points in space. These models are common in epidemiology and disease-mapping applications where researchers need to estimate a quantity of interest like a relative risk but have sparse data for some areas (which may differ from truth due to sampling variability). Modelling a panel's error structure with random-effects for space and time penalizes bumpiness (local deviations) in predicted values and theoretically improves out-of-sample accuracy (because large local deviations can stem from low $n$ in a given area). The spatial models in particular allow for missing data to be imputed based off of a local average of neighbors rather than the global or period-specific average. 
 
 ## Results
 
-Visit the interactive results dashboard [here](http://hesscl.com/smooth-sea/dashboard/index.html).
+Visit the interactive results dashboard [here](http://hesscl.com/smooth-sea/dashboard/index.html){target="_blank"}.
 
 ```{r construct panel (some missingness), echo=FALSE, message=FALSE, warning=FALSE}
 #ensure order of census df matches shapefile
@@ -447,7 +447,17 @@ fit_stats <- sea_df %>%
   dplyr::select(train_test, ends_with("_rmse"), ends_with("_mae"))
 ```
 
+The following tables show in-sample and out-of-sample (i.e. 2018 Q2) accuracy for the 5 model specifications in terms of root mean squared-error (RMSE) and mean absolute error (MAE). Note how though the Non-Spatial models (i.e. `ns` and `nsar1`) achieve slightly better in-sample fits, both Spatial models are more accurate at predicting the current month's surface of rent values. It is important to note how the goal in the present case is to understand the data generating process, that is, the systematic variation in the data less the random component. So while we want to minimize model error as a way to judge if our models improve on each other, we also want to smooth over sampling variability in the Craigslist data that induces local deviations compared to the true median rent. The [information criteria for the models](http://hesscl.com/smooth-sea/dashboard/index.html#model-fit){target="_blank"} generally show that the spatial specifications are more likely models of the neighborhood rent data generating process.
+
 <br>
+
+`r knitr::kable(fit_stats %>% select(train_test, ends_with("rmse")))`
+
+`r knitr::kable(fit_stats %>% select(train_test, ends_with("mae")))`
+
+<br>
+
+Figure 6 depicts the predicted temporal structure based on the top fitting model, the Spatial AR(1) specification. The quarterly fluctuation is about $50-$100 depending on the tract in question. Modeling neighborhood median rents on log scale allows for non-constant variance across the range of y, such that the periodic deviations are largest at the top of the distribution and more subdued among low-rent neighborhoods.
 
 ```{r bym_lineplot, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 bym_df <- sea_df %>%
@@ -467,13 +477,16 @@ ggplot(bym_df %>% filter(model == "E. Spatial AR(1)"),
   ylab("Median 1B Rent\n") +
   labs(color="Quarterly\nDeviation") +
   theme_minimal() +
+  theme(legend.key.width = unit(.1, "inch")) +
   ggsave(filename = "../output/bym_lineplot.png",
-         width = 6, height = 4, dpi = 500)
+         width = 6, height = 3, dpi = 500)
 ```
 
-![**Figure 6.** _Lineplot of Spatial AR(1) model predicted values._](../output/bym_lineplot.png)
+![**Figure 6.** _Lineplot of Spatial AR(1) model predicted values. Colors denote a tract's deviation from the average neighborhood 1B rent level on a quarter-by-quarter basis._](../output/bym_lineplot.png)
 
 <br>
+
+Figure 7 provides a spatial time-series for the actual and predicted values using the Spatial AR(1) `bym` model. Since there is no space time interaction, the spatial distribution is constant across the quarter periods. The quarterly fluctuation is visible in both the observed and predicted data, though the spatial distribution of rent levels in the model predictions smooths over particularly high and low local deviations. The model imputes reasonable values for missing data over the entire panel, giving an estimate of what we would expect a one-bedroom to cost based on the period, neighbors and any earlier observations of the tract (if they exist). Overall, one clear takeaway is that the spatial variation in rent cost swamps that of the short-term dynamics observed to date. In this sense, estimating the spatial distribution completely and accurately is a crucial goal of any indicator of the market---whether a simple median or a complex model like the current one.
 
 ```{r avp_map_series, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 obs_map_series <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = actualRent)) +
@@ -516,15 +529,18 @@ obs_map_series + bym_map_series +
 
 <br>
 
-`r knitr::kable(fit_stats %>% select(train_test, ends_with("rmse")))`
 
-`r knitr::kable(fit_stats %>% select(train_test, ends_with("mae")))`
-
-<br>
 
 ## Discussion
+
+This study highlights the importance of considering scraped web data for understanding the dynamics of neighborhood rental housing costs. Throughout this work we demonstrate how Craigslist rental housing listings scraped may be used to research the estimated rent for the Seattle market and its neighborhoods. Models 
 
 <br>
 
 ## References
 
+[Boeing, G. and Waddell, P., 2017. New insights into rental housing markets across the united states: web scraping and analyzing craigslist rental listings. Journal of Planning Education and Research, 37(4), pp.457-476.](http://journals.sagepub.com/doi/abs/10.1177/0739456X16664789){target="_blank"}
+
+[Besag, J., York, J. and Mollie, A., 1991. Bayesian image restoration with two applications in spatial statistics (with discussion) Annals of the Institute of Statistical Mathematics. 43, pp.1-59.](https://link.springer.com/article/10.1007/BF00116466){target="_blank"}
+
+[Blangiardo, M., Cameletti, M., Baio, G. and Rue, H., 2013. Spatial and spatio-temporal models with R-INLA. Spatial and spatio-temporal epidemiology, 4, pp.33-49.](https://www.sciencedirect.com/science/article/pii/S1877584512000846){target="_blank"}
