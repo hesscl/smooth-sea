@@ -479,7 +479,7 @@ ggplot(bym_df %>% filter(model == "E. Spatial AR(1)"),
   theme_minimal() +
   theme(legend.key.width = unit(.1, "inch")) +
   ggsave(filename = "../output/bym_lineplot.png",
-         width = 6, height = 3, dpi = 500)
+         width = 6, height = 3, dpi =300)
 ```
 
 ![**Figure 6.** _Lineplot of Spatial AR(1) model predicted values. Colors denote a tract's deviation from the average neighborhood 1B rent level on a quarter-by-quarter basis._](../output/bym_lineplot.png)
@@ -522,7 +522,7 @@ bym_map_series <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = bym
 obs_map_series + bym_map_series +
   plot_layout(ncol = 1) +
   ggsave(filename = "../output/avp_map_series.png",
-         width = 6, height = 5, dpi = 500)
+         width = 6, height = 5, dpi =300)
 ```
 
 ![**Figure 7.** _Chloropleth maps of actual versus predicted values (BYM Spatial AR(1) model) for the Q1 2017 to Q2 2018 period._](../output/avp_map_series.png)
@@ -535,7 +535,7 @@ obs_map_series + bym_map_series +
 
 This study highlights the importance of considering scraped web data for understanding the dynamics of neighborhood rental housing costs. Throughout this work we demonstrate how Craigslist rental housing listings scraped may be used to research the estimated rent for the Seattle market and its neighborhoods. Using Bayesian spatial smoothing models further exploit the scraped data's spatial and temporal richness, giving researchers an option for studying rental housing market dynamics on a more granular scale where time is not only considered in terms of trend, but also random shock and seasonality. 
 
-Finally, this paper has endeavored (perhaps a little too much...) to provide an example for using scraped rental housing listings for research, but also with to model for how Rmarkdown, Git and GitHub are transformative technologies for our disciplines. There are no free lunches with reproducibility: these open-source technologies demand that we learn how to incorporate them into our work. To the extent that this requires thinking about analysis beyond a userbase of 1, there can be some growing pains. However, there are some positive spillovers beyond improving the _science_ of social science---including new platforms and media for sharing research findings and ideas.
+Finally, this paper has endeavored (perhaps a little too much...) to provide an example of using scraped rental housing listings for research, but also to model how Rmarkdown, Git and GitHub are transformative  for our disciplines. There are no free lunches with reproducibility: these open-source technologies demand that we learn how to incorporate them into our work. To the extent that this requires thinking about analysis beyond a userbase of 1, there can be some growing pains. However, there are some positive spillovers beyond improving the _science_ of social science---including new platforms and media for sharing research findings.
 
 <br>
 

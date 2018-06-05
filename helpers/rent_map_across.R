@@ -151,4 +151,4 @@ ggplot(tract_f %>% filter(catBeds == "1 Bedroom"), aes(x = long, y = lat, group 
         legend.key.width = unit(.1, "inch")) +
   labs(fill = "Asking Rent") +
   ggsave(filename = "../output/rent_map_across_1B.png",
-         width = 8, height = 4, dpi = 500)
+         width = 8, height = 4, dpi = 300)

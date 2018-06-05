@@ -113,4 +113,4 @@ ggplot(sumRent, aes(x = moYr, y = Rent, group = dataSrc, color = dataSrc, shape 
   labs(color = "Data Source",
        shape = "Data Source") +
   ggsave(file = "../output/rent_lineplot.png",
-         device = "png", width = 6, height = 4, dpi = 500)
+         device = "png", width = 6, height = 4, dpi = 300)

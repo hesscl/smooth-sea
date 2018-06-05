@@ -71,5 +71,5 @@ ggplot(cal, aes(x = monthweek, y = weekdayf, fill = n)) +
   ylab("Day of Week\n") +
   labs(fill = "1B Listings") +
   ggsave(filename = "../output/n_heatmap.png",
-         width = 7, height = 3, dpi = 500)
+         width = 7, height = 3, dpi = 300)
 

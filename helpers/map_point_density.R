@@ -43,6 +43,6 @@ with_points <- qmplot(lng, lat, data = map_cl, maptype = "toner-lite", darken = 
 
 blank + with_points +
   ggsave(filename = "../output/map_point_density.png",
-         width = 6, height = 5.5, units = "in", dpi = 500)
+         width = 6, height = 5.5, units = "in", dpi = 300)
 
 
