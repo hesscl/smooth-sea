@@ -8,7 +8,7 @@ load_data <- function(){
     #compute tract aggregates for CL listing count
     tract <- cl %>%
       collect %>% #bring db query into memory
-      filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), 
+      filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), !is.na(matchAddress), !is.na(matchAddress2),
              GISJOIN %in% sea_shp@data$GISJOIN, #only listings with valid Bed/Rent, seattle tracts
              matchType != "Google Maps Lat/Long") %>% #need to have address, not approximate
       distinct(cleanBeds, cleanRent, cleanSqft, matchAddress, 
@@ -17,7 +17,7 @@ load_data <- function(){
                     cleanBeds, cleanRent, cleanSqft) %>% #SELECT these columns
       mutate(listingDate = as.Date(listingDate),
              listingQtr = as.yearqtr(listingDate)) %>%
-      filter(listingQtr >= "2017 Q1") %>%
+      filter(listingQtr >= "2017 Q1", listingQtr < "2018 Q3") %>%
       group_by(GISJOIN, listingQtr) %>% #group listings by tract, qtr within tract
       summarize(nListings = n(),
                 n1B = sum(cleanBeds == 1),
@@ -32,8 +32,8 @@ load_data <- function(){
     write_csv(tract, "../input/tractCl.csv")
     return(tract)
   } else{
-    #if github config, read in extract from cl db
-    tract <- read_csv("../input/tractCl.csv")
+    #if github config
+    print("Need input data")
     return(tract)
   }
 }

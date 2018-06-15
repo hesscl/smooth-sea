@@ -20,10 +20,10 @@ tract2010_bg <- fortify(tract2010)
 cl2017 <- rent_map_sea %>% 
   filter(seattle==1) %>% 
   collect %>% 
-  filter(listingYear >= 2017, 
-         matchType != "Google Maps Lat/Long",
-         !is.na(matchAddress), !is.na(matchAddress2), !is.na(catBeds), !is.na(cleanSqft), !is.na(cleanRent),
-         catBeds %in% c("0", "1", "2"), !is.na(lat) & !is.na(lng)) %>%
+  mutate(listingQtr = as.yearqtr(listingDate)) %>%
+  filter(listingQtr >= "2017 Q1", listingQtr < "2018 Q3",
+         !is.na(GISJOIN), !is.na(matchAddress), !is.na(matchAddress2), !is.na(catBeds), !is.na(cleanSqft), !is.na(cleanRent),
+         catBeds %in% c("0", "1", "2")) %>%
   distinct(matchAddress, matchAddress2, catBeds, cleanSqft, cleanRent, .keep_all = T) %>%
   group_by(GISJOIN, catBeds) %>%
   summarize(rent = median(cleanRent, na.rm = T),

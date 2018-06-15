@@ -20,12 +20,13 @@ sumCL <- cl %>%
   mutate(catSqft = fct_reorder(catSqft, cleanSqft)) %>%
   arrange(listingDate) %>%
   select(-ends_with("10")) %>%
-  filter(!is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), !is.na(matchAddress), !is.na(matchAddress2),
-         matchType != "Google Maps Lat/Long") %>%
+  filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), !is.na(matchAddress), !is.na(matchAddress2),
+         GISJOIN %in% sea_shp@data$GISJOIN, #only listings with valid Bed/Rent, seattle tracts
+         matchType != "Google Maps Lat/Long") %>% #need to have address, not approximate
   distinct(matchAddress, matchAddress2, catBeds, cleanSqft, cleanRent, .keep_all = T) %>%
   mutate(listingQtr = as.yearqtr(as.Date(listingDate))) %>%
+  filter(listingQtr >= "2017 Q1", listingQtr < "2018 Q3") %>%
   group_by(listingQtr) %>%
-  filter(listingQtr >= "2017 Q1") %>%
   summarize(Rent = median(cleanRent, na.rm=T),
             nHU = n()) %>%
   rename(moYr = listingQtr) %>%

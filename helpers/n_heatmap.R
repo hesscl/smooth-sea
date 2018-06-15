@@ -5,15 +5,16 @@ cl <- tbl(DB, "clean") #clean listing table
 
 #compute tract aggregates for CL listing count
 sea_cl <- cl %>%
-  filter(!is.na(GISJOIN), seattle == 1) %>% #only listings with valid Bed/Rent
-  dplyr::select(listingMoYr, listingDate, GISJOIN, seattle, matchAddress, matchAddress2, matchType, cleanBeds, cleanRent, cleanSqft) %>% #SELECT these columns
+  dplyr::select(listingMoYr, listingDate, GISJOIN, seattle, matchAddress, matchAddress2, 
+                matchType, cleanBeds, cleanRent, cleanSqft) %>% #SELECT these columns
   collect %>% #bring db query into memory
-  filter(GISJOIN %in% sea_shp@data$GISJOIN) %>% #filter to KC only (db has metro area)
+  filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), !is.na(matchAddress), !is.na(matchAddress2),
+         GISJOIN %in% sea_shp@data$GISJOIN, #only listings with valid Bed/Rent, seattle tracts
+         matchType != "Google Maps Lat/Long") %>% #need to have address, not approximate
   mutate(listingDate = as.Date(listingDate),
          listingQtr = as.yearqtr(listingDate)) %>%
-  filter(listingQtr >= "2017 Q1", !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft),
+  filter(listingQtr >= "2017 Q1", listingQtr < "2018 Q3",
          cleanBeds == 1) %>% 
-  filter(matchType != "Google Maps Lat/Long") %>% #no Google lat/long only geocodes
   distinct(matchAddress, matchAddress2, cleanBeds, cleanRent, cleanSqft, .keep_all = T)
 dbDisconnect(DB)
 

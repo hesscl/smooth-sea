@@ -14,15 +14,17 @@ map_raw <- tbl(DB, "raw")
 map_cl <- map_clean %>% 
   filter(seattle==1) %>%
   collect %>% #bring db query into memory
-  filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), 
-         GISJOIN %in% sea_shp@data$GISJOIN, matchType != "Google Maps Lat/Long") %>% #only listings with valid Bed/Rent, seattle tracts
+  filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), !is.na(matchAddress), !is.na(matchAddress2),
+         GISJOIN %in% sea_shp@data$GISJOIN, #only listings with valid Bed/Rent, seattle tracts
+         matchType != "Google Maps Lat/Long") %>% #need to have address, not approximate
   distinct(cleanBeds, cleanRent, cleanSqft, matchAddress, 
            matchAddress2, .keep_all = T) %>% #dedupe to unique address-bed-rent combos
   dplyr::select(listingDate, GISJOIN, seattle, matchAddress, matchType, 
                 cleanBeds, cleanRent, cleanSqft, lat, lng) %>% #SELECT these columns
   mutate(listingDate = as.Date(listingDate),
          listingQtr = as.yearqtr(listingDate)) %>%
-  filter(cleanBeds %in% c(1), listingQtr >= "2017 Q2")
+  filter(cleanBeds %in% c(1), listingQtr >= "2017 Q1", listingQtr < "2018 Q3")
+
 dbDisconnect(DB)
 
 blank <- qmplot(lng, lat, data = map_cl, maptype = "toner-lite", geom = "blank") 

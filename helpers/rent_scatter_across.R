@@ -13,7 +13,7 @@ scatter_ds <- read_csv("R:/Project/seattle_rental_market/data/d+s/geocoded_D+S.c
 scatter_cl <- scatter_sea %>% 
   filter(seattle==1) %>%
   collect %>% #bring db query into memory
-  filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), 
+  filter(!is.na(GISJOIN), !is.na(matchAddress), !is.na(matchAddress2), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), 
          GISJOIN %in% tract2000@data$GISJOIN, matchType != "Google Maps Lat/Long") %>% #only listings with valid Bed/Rent, seattle tracts
   distinct(cleanBeds, cleanRent, cleanSqft, matchAddress, 
            matchAddress2, .keep_all = T) %>% #dedupe to unique address-bed-rent combos
@@ -21,7 +21,7 @@ scatter_cl <- scatter_sea %>%
                 cleanBeds, cleanRent, cleanSqft, lat, lng) %>% #SELECT these columns
   mutate(listingDate = as.Date(listingDate),
          listingQtr = as.yearqtr(listingDate)) %>%
-  filter(cleanBeds %in% c(1), listingQtr >= "2017 Q1")
+  filter(cleanBeds %in% c(1), listingQtr >= "2017 Q1", listingQtr < "2018 Q3")
 
 coordinates(scatter_cl) <- cbind(scatter_cl$lng, scatter_cl$lat)
 
