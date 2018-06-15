@@ -29,7 +29,6 @@ load_data <- function(){
       ungroup %>%
       arrange(GISJOIN, listingQtr)
     dbDisconnect(DB)
-    write_csv(tract, "../input/tractCl.csv")
     return(tract)
   } else{
     #if github config
