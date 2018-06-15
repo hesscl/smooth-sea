@@ -246,11 +246,11 @@ Model                    | Abbr.   | Formula
 ------------------------ | ------- | ----------------------------------------------
 Fixed Intercept          | `int`     | $\theta_{it} = \beta_0 + Qtr$
 Non-Spatial              | `ns`      | $\theta_{it} = \beta_0 + \epsilon_i + Qtr$
-Non-Spatial AR(1)        | `nsar1`  | $\theta_{it} = \beta_0 + \epsilon_t + \epsilon_{t-1} + \epsilon_i$
-BYM Spatial AR(1)        | `bym `    | $\theta_{it} = \beta_0 + \epsilon_t + \epsilon_{t-1} + \epsilon_i + S_i.$
-BYM Spatiotemporal AR(1) | `spt`     | $\theta_{it} = \beta_0 + \epsilon_t + \epsilon_{t-1} + \epsilon_i + S_i. + \epsilon_{it}$
+Non-Spatial AR(1)        | `nsar1`  | $\theta_{it} = \beta_0 + x_t + \epsilon_t + \epsilon_i$
+BYM Spatial AR(1)        | `bym `    | $\theta_{it} = \beta_0 + x_t + \epsilon_t  + \epsilon_i + S_i.$
+BYM Spatiotemporal AR(1) | `spt`     | $\theta_{it} = \beta_0 + x_t + \epsilon_t  + \epsilon_i + S_i + \epsilon_{it}$
 
-The Fixed Intercept model (`int`) uses fixed effects for quarters only. The Non-Spatial (`ns`) model adds random noise (i.i.d.) tract random-effects. The Non-Spatial AR(1) model (`nsar1`) uses AR(1) process to model the temporal dynamics (formally, $\epsilon_1 \sim \mbox{Normal}(0, (\tau(1-\rho^2))^{-1}))$ where $\epsilon_t = \rho x_{t-1} + \epsilon_t$). This model includes a random noise term for each quarter too.
+The Fixed Intercept model (`int`) uses fixed effects for quarters only. The Non-Spatial (`ns`) model adds random noise (i.i.d.) tract random-effects. The Non-Spatial AR(1) model (`nsar1`) uses AR(1) process to model the temporal dynamics (formally, $x_1 \sim \mbox{Normal}(0, (\tau(1-\rho^2))^{-1})$ where $x_t = \rho x_{t-1} + \epsilon_t$). This model includes a random noise term for each quarter too.
 
 The BYM Spatial with AR(1) is the [Besag-York-Mollie (1991)](https://link.springer.com/article/10.1007/BF00116466){target="_blank"} intrinsic conditional autoregressive spatial model with AR(1) and exchangeable hyperparameters for the panel's temporal structure (referred to as `bym` using shorthand). The random-effect $S_i$ is assumed to come from a normal distribution whose mean is the mean of the neighbors' random effects and variance proportional to the number of neighbors (formally, $S_i|S_j, j \in ne(i) ~ \mbox{Normal}(\bar{S_i}, \frac{\sigma^{2}_s}{m_j})$. Lastly, the BYM Spatiotemporal AR(1) (`spt`) adds an exchangeable random-effect for each period to allow for area-specific deviations in time trends.
 
