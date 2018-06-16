@@ -247,7 +247,7 @@ Model                    | Abbr.   | Formula
 Fixed Intercept          | `int`   | $\theta_{it} = \beta_0 + \gamma_t$
 Non-Spatial              | `ns`    | $\theta_{it} = \beta_0 + \nu_i + \gamma_t$
 Non-Spatial AR(1)        | `nsar1` | $\theta_{it} = \beta_0 + x_t + \phi_t + \nu_i$
-BYM Spatial AR(1)        | `bym `  | $\theta_{it} = \beta_0 + x_t + \phi_t + v_i + \nu_i $
+BYM Spatial AR(1)        | `bym `  | $\theta_{it} = \beta_0 + x_t + \phi_t + v_i + \nu_i$
 BYM Spatiotemporal AR(1) | `spt`   | $\theta_{it} = \beta_0 + x_t + \phi_t + v_i + \nu_i + \delta_{it}$
 
 The Fixed Intercept model (`int`) has a global intercept ($\beta_0$) and fixed effects ($\gamma_t$) for each quarter of each year. The Non-Spatial (`ns`) model adds random noise (i.i.d.) tract random-effects ($\nu_i \sim Normal(0, \tau_\nu)$) to the Fixed Intercept specification. The Non-Spatial AR(1) model (`nsar1`) then incorporates term an AR(1) random-effect ($x_1 \sim \mbox{Normal}(0, (\tau(1-\rho^2))^{-1})$ where $x_t = \rho x_{t-1} + \epsilon_t$) to dynamically model the temporal variation. This model includes a random noise term ($\phi_t \sim Normal(0, \tau_\phi)$) for each quarter too.
