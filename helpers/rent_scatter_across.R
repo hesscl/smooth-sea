@@ -66,7 +66,7 @@ across2017 <- left_join(across2017, ds2017)
 pal <- brewer.pal(3, "Purples")
 
 ggplot(across2017, aes(x = dsRent, y = clRent, size = nHU)) + 
-  geom_point() +
+  geom_point(alpha = .6) +
   geom_abline(slope = 1, intercept = 0) +
   geom_smooth(show.legend = FALSE, se=FALSE, linetype = 5, 
               color = viridis(3, begin = .25, option = "A")[1], lwd = 1.25) +
