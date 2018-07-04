@@ -252,6 +252,10 @@ The BYM Spatial with AR(1) includes a random-effect drawn from the [Besag-York-M
 
 The space and time smoothing models used in this section partially pool the data (e.g. the same observation at different points in time, a tract's neighboring units) to measure the degree of variation across different quarters and at different points in space. These models are common in epidemiology and disease-mapping applications where researchers need to estimate a quantity of interest like a relative risk but have sparse data for some areas (which may differ from truth due to sampling variability). Modelling a panel's error structure with random-effects for space and time penalizes bumpiness (local deviations) in predicted values and theoretically improves out-of-sample accuracy (because large local deviations can stem from low $n$ in a given area). The spatial models in particular allow for missing data to be imputed based off of a local average of neighbors rather than the global or period-specific average. 
 
+<br>
+<hr>
+<br>
+
 ## Results
 
 Visit the interactive results dashboard [here](http://hesscl.com/smooth-sea/dashboard/index.html).
@@ -524,8 +528,8 @@ obs_map_series + bym_map_series +
 ![Chloropleth maps of actual versus predicted values (BYM Spatial AR(1) model) for the Q1 2017 to Q2 2018 period.](../output/avp_map_series.png)
 
 <br>
-
-
+<hr>
+<br>
 
 ## Discussion
 
