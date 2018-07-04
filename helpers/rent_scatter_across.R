@@ -1,9 +1,7 @@
 #### Helper script to compute scatter plot of CL X D+S
 
 #data
-DB <- dbConnect(SQLite(), dbname="R:/Project/seattle_rental_market/data/cl/craigslistDB.sqlite")
-scatter_sea <- tbl(DB, "clean") #clean seattle listing table
-scatter_raw <- tbl(DB, "raw")
+scatter_sea <- load_data(listings = TRUE)
 
 #read in D+S tract summaries
 scatter_ds <- read_csv("R:/Project/seattle_rental_market/data/d+s/geocoded_D+S.csv")
@@ -11,17 +9,8 @@ scatter_ds <- read_csv("R:/Project/seattle_rental_market/data/d+s/geocoded_D+S.c
 #### A. Prepare a table for ggplot ---------------------------------------------
 
 scatter_cl <- scatter_sea %>% 
-  filter(seattle==1) %>%
-  collect %>% #bring db query into memory
-  filter(!is.na(GISJOIN), !is.na(matchAddress), !is.na(matchAddress2), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), 
-         GISJOIN %in% tract2000@data$GISJOIN, matchType != "Google Maps Lat/Long") %>% #only listings with valid Bed/Rent, seattle tracts
-  distinct(cleanBeds, cleanRent, cleanSqft, matchAddress, 
-           matchAddress2, .keep_all = T) %>% #dedupe to unique address-bed-rent combos
-  dplyr::select(listingYear, listingDate, GISJOIN, seattle, matchAddress, matchType, 
-                cleanBeds, cleanRent, cleanSqft, lat, lng) %>% #SELECT these columns
-  mutate(listingDate = as.Date(listingDate),
-         listingQtr = as.yearqtr(listingDate)) %>%
-  filter(cleanBeds %in% c(1), listingQtr >= "2017 Q1", listingQtr < "2018 Q3")
+  filter(cleanBeds == 1) %>%
+  select(-GISJOIN)
 
 coordinates(scatter_cl) <- cbind(scatter_cl$lng, scatter_cl$lat)
 
@@ -58,7 +47,6 @@ cl2017 <- scatter_cl %>%
   group_by(GISJOIN) %>%
   summarize(clRent = median(cleanRent[cleanBeds==1], na.rm =T),
             nHU = n()) %>%
-  #filter(nHU >= 15) %>%
   select(GISJOIN, clRent, nHU)
 
 across2017 <- left_join(tract2000@data, cl2017)

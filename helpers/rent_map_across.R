@@ -4,9 +4,7 @@
 rent_map_acs <- read_csv(file = "R:/Project/seattle_rental_market/data/census/acs/nhgis0051_ds226_20165_2016_tract.csv")
 
 #connect to craigslist data
-DB <- dbConnect(SQLite(), dbname="R:/Project/seattle_rental_market/data/cl/craigslistDB.sqlite")
-rent_map_sea <- tbl(DB, "clean") #clean seattle listing table
-rent_map_raw <- tbl(DB, "raw")
+rent_map_sea <- load_data(listings = TRUE)
 
 #load d+s data
 rent_map_ds <- read_csv("R:/Project/seattle_rental_market/data/d+s/geocoded_D+S.csv")
@@ -16,27 +14,20 @@ tract2010_bg <- fortify(tract2010)
 
 #### A. Prep CL table ---------------------------------------------------------
 
-#2017-2018 listings in seattle with non-missing lat/lng, drop 2010 geog fields
+#2017-2018 listings in seattle with non-missing lat/lng
 cl2017 <- rent_map_sea %>% 
-  filter(seattle==1) %>% 
-  collect %>% 
-  mutate(listingQtr = as.yearqtr(listingDate)) %>%
-  filter(listingQtr >= "2017 Q1", listingQtr < "2018 Q3", matchType != "Google Maps Lat/Long",
-         !is.na(GISJOIN), !is.na(matchAddress), !is.na(matchAddress2), !is.na(catBeds), !is.na(cleanSqft), !is.na(cleanRent),
-         catBeds %in% c("0", "1", "2")) %>%
-  distinct(matchAddress, matchAddress2, catBeds, cleanSqft, cleanRent, .keep_all = T) %>%
+  filter(cleanBeds %in% c(0, 1, 2)) %>% #this is inconsequential, just to preserve studio/2BD comparisons for future
   group_by(GISJOIN, catBeds) %>%
   summarize(rent = median(cleanRent, na.rm = T),
             nHU = n(),
             data = "Craigslist 2017-2018") %>%
-  select(GISJOIN, data, catBeds, rent, nHU)
-dbDisconnect(DB)
+  dplyr::select(GISJOIN, data, catBeds, rent, nHU)
 
 #### B. Prep D+S table --------------------------------------------------------
 
 #munge starting table of tract summaries
 ds2017 <- rent_map_ds %>%
-  select(-STATEFP00, -COUNTYFP00, -TRACTCE00, -CTIDFP00, -SHAPE_AREA, -SHAPE_LEN, -NAME00,
+  dplyr::select(-STATEFP00, -COUNTYFP00, -TRACTCE00, -CTIDFP00, -SHAPE_AREA, -SHAPE_LEN, -NAME00,
          -INTPTLAT00, -INTPTLON00) %>%
   mutate(surveyYear = parse_number(Survey),
          surveySeason = sub("[:0-9:]+", "", Survey),
@@ -44,9 +35,9 @@ ds2017 <- rent_map_ds %>%
                               ifelse(surveySeason == "Fall ", 9, NA)),
          surveyDate = as.yearmon(paste0(surveyYear, "-0", surveyMonth, "-01")),
          dsRent = Rent) %>% #spring = March, Fall = Sept
-  select(-Survey, -surveySeason) %>%
+  dplyr::select(-Survey, -surveySeason) %>%
   filter(surveyYear == 2017, surveyMonth == 9, rowType %in% c("Studio", "1BD/1BA", "2BD/1BA", "2BD/2BA")) %>%
-  select(GISJOIN, rowType, dsRent, Bldgs, Units)
+  dplyr::select(GISJOIN, rowType, dsRent, Bldgs, Units)
 
 #studio
 ds0BD <- ds2017 %>%
@@ -55,7 +46,7 @@ ds0BD <- ds2017 %>%
          rent = dsRent,
          nHU = Units,
          data = "Dupre+Scott 2017") %>%
-  select(GISJOIN, data, catBeds, rent, nHU)
+  dplyr::select(GISJOIN, data, catBeds, rent, nHU)
 
 #1BD
 ds1BD <- ds2017 %>%
@@ -64,7 +55,7 @@ ds1BD <- ds2017 %>%
          rent = dsRent,
          nHU = Units,
          data = "Dupre+Scott 2017") %>%
-  select(GISJOIN, data, catBeds, rent, nHU)
+  dplyr::select(GISJOIN, data, catBeds, rent, nHU)
 
 #2BD
 ds2BD <- ds2017 %>%
@@ -74,7 +65,7 @@ ds2BD <- ds2017 %>%
             catBeds = "2",
             data = "Dupre+Scott 2017", 
             nHU = sum(Units)) %>%
-  select(GISJOIN, data, catBeds, rent, nHU)
+  dplyr::select(GISJOIN, data, catBeds, rent, nHU)
 
 ds2017 <- bind_rows(ds0BD, ds1BD, ds2BD)
 
@@ -88,21 +79,21 @@ acs0B <- rent_map_acs %>%
          catBeds = "0",
          data = "ACS 2012-2016",
          nHU = NA) %>%
-  select(GISJOIN, data, catBeds, rent, nHU)
+  dplyr::select(GISJOIN, data, catBeds, rent, nHU)
 
 acs1B <- rent_map_acs %>%
   mutate(rent = AGPZE003,
          catBeds = "1",
          data = "ACS 2012-2016",
          nHU = NA) %>%
-  select(GISJOIN, data, catBeds, rent, nHU)
+  dplyr::select(GISJOIN, data, catBeds, rent, nHU)
 
 acs2B <- rent_map_acs %>%
   mutate(rent = AGPZE004,
          catBeds = "2",
          data = "ACS 2012-2016",
          nHU = NA) %>%
-  select(GISJOIN, data, catBeds, rent, nHU)
+  dplyr::select(GISJOIN, data, catBeds, rent, nHU)
 
 data_tract2010 <- bind_rows(acs0B, acs1B, acs2B, cl2017)
 

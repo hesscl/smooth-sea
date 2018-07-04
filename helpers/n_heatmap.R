@@ -1,23 +1,11 @@
-
-#connect to db
-DB <- dbConnect(SQLite(), dbname="R:/Project/seattle_rental_market/data/cl/craigslistDB.sqlite")
-cl <- tbl(DB, "clean") #clean listing table
-
 #compute tract aggregates for CL listing count
-sea_cl <- cl %>%
-  dplyr::select(listingMoYr, listingDate, GISJOIN, seattle, matchAddress, matchAddress2, 
-                matchType, cleanBeds, cleanRent, cleanSqft) %>% #SELECT these columns
-  collect %>% #bring db query into memory
-  filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), !is.na(matchAddress), !is.na(matchAddress2),
-         GISJOIN %in% sea_shp@data$GISJOIN, #only listings with valid Bed/Rent, seattle tracts
-         matchType != "Google Maps Lat/Long") %>% #need to have address, not approximate
-  mutate(listingDate = as.Date(listingDate),
-         listingQtr = as.yearqtr(listingDate)) %>%
-  filter(listingQtr >= "2017 Q1", listingQtr < "2018 Q3",
-         cleanBeds == 1) %>% 
-  distinct(matchAddress, matchAddress2, cleanBeds, cleanRent, cleanSqft, .keep_all = T)
-dbDisconnect(DB)
+sea_cl <- load_data(listings = TRUE)
 
+#filter to 1BDs
+sea_cl <- sea_cl %>% 
+  filter(cleanBeds == 1)
+
+#function to compute the daily ts for n with missingness allowed
 computeCal <- function(x){
   y <- x %>%
     group_by(listingDate) %>%
@@ -38,7 +26,7 @@ computeCal <- function(x){
   n <- cbind.data.frame(n, fullDates)
 }
 
-
+#compute the daily ts of n listings, rework fields to what is needed for gg
 cal <- computeCal(sea_cl) %>%
   mutate(weekdayf = weekdays(fullDates) %>% as.factor,
          monthf = month(fullDates, label = T),
@@ -47,10 +35,11 @@ cal <- computeCal(sea_cl) %>%
          week = as.numeric(format(fullDates,"%W")))
 sum(is.na(cal$n))/nrow(cal)
 
+#order the days of week to match graphic format
 cal$weekdayf <- factor(cal$weekdayf, levels = rev(levels(cal$weekdayf)[c(2,6,7,5,1,3,4)]))
 
 #credit to https://rpubs.com/haj3/calheatmap for code and idea
-cal<-plyr::ddply(cal,plyr::.(yearmon),transform,monthweek=1+week-min(week))
+cal <- plyr::ddply(cal, plyr::.(yearmon), transform, monthweek = 1+week-min(week))
 
 #make the heatmap
 ggplot(cal, aes(x = monthweek, y = weekdayf, fill = n)) +
@@ -66,8 +55,7 @@ ggplot(cal, aes(x = monthweek, y = weekdayf, fill = n)) +
         axis.title = element_text(size = 8),
         strip.text = element_text(size = 8),
         panel.grid = element_blank()) +
-  guides(fill = guide_colourbar(barwidth = 11,
-                                label.position = "bottom")) +
+  guides(fill = guide_colourbar(barwidth = 11, label.position = "bottom")) +
   xlab("\nWeek of Month") +
   ylab("Day of Week\n") +
   labs(fill = "1B Listings") +

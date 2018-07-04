@@ -1,31 +1,18 @@
 
 ### Helper script to produce across data lineplot of median rent for Seattle
 
-#data
-DB <- dbConnect(SQLite(), dbname="R:/Project/seattle_rental_market/data/cl/craigslistDB.sqlite")
-sea <- tbl(DB, "clean") #clean seattle listing table
-raw <- tbl(DB, "raw")
-
-#for code that has not been updated to db calls
-cl <- sea %>% collect %>% filter(seattle==1)
+#query listings
+cl <- load_data(listings = TRUE)
 
 #load Seattle market summaries from D+S
 ds <- read_csv(file = "R:/Project/seattle_rental_market/data/d+s/city-level D+S.csv")
 
-
 #### A. Prepare a table for ggplot ---------------------------------------------
 
 sumCL <- cl %>%
-  #mutate(cleanRent = ifelse(cleanRent > 5000, NA, cleanRent)) %>%
-  mutate(catSqft = fct_reorder(catSqft, cleanSqft)) %>%
+  mutate(cleanRent = ifelse(year(listingDate) == 2017, cleanRent * 1.02, cleanRent)) %>%
   arrange(listingDate) %>%
   select(-ends_with("10")) %>%
-  filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), !is.na(matchAddress), !is.na(matchAddress2),
-         GISJOIN %in% sea_shp@data$GISJOIN, #only listings with valid Bed/Rent, seattle tracts
-         matchType != "Google Maps Lat/Long") %>% #need to have address, not approximate
-  distinct(matchAddress, matchAddress2, catBeds, cleanSqft, cleanRent, .keep_all = T) %>%
-  mutate(listingQtr = as.yearqtr(as.Date(listingDate))) %>%
-  filter(listingQtr >= "2017 Q1", listingQtr < "2018 Q3") %>%
   group_by(listingQtr) %>%
   summarize(Rent = median(cleanRent, na.rm=T),
             nHU = n()) %>%

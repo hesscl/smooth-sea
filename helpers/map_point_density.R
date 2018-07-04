@@ -5,30 +5,17 @@
 library(ggmap)
 library(patchwork)
 
-#data
-DB <- dbConnect(SQLite(), dbname="R:/Project/seattle_rental_market/data/cl/craigslistDB.sqlite")
-map_clean <- tbl(DB, "clean") #clean seattle listing table
-map_raw <- tbl(DB, "raw")
-
 #load table
-map_cl <- map_clean %>% 
-  filter(seattle==1) %>%
-  collect %>% #bring db query into memory
-  filter(!is.na(GISJOIN), !is.na(cleanBeds), !is.na(cleanRent), !is.na(cleanSqft), !is.na(matchAddress), !is.na(matchAddress2),
-         GISJOIN %in% sea_shp@data$GISJOIN, #only listings with valid Bed/Rent, seattle tracts
-         matchType != "Google Maps Lat/Long") %>% #need to have address, not approximate
-  distinct(cleanBeds, cleanRent, cleanSqft, matchAddress, 
-           matchAddress2, .keep_all = T) %>% #dedupe to unique address-bed-rent combos
-  dplyr::select(listingDate, GISJOIN, seattle, matchAddress, matchType, 
-                cleanBeds, cleanRent, cleanSqft, lat, lng) %>% #SELECT these columns
-  mutate(listingDate = as.Date(listingDate),
-         listingQtr = as.yearqtr(listingDate)) %>%
-  filter(cleanBeds %in% c(1), listingQtr >= "2017 Q1", listingQtr < "2018 Q3")
+map_cl <- load_data(listings = TRUE)
 
-dbDisconnect(DB)
+#filter to 1BD listings
+map_cl <- map_cl %>%
+  filter(cleanBeds == 1)
 
+#create left panel
 blank <- qmplot(lng, lat, data = map_cl, maptype = "toner-lite", geom = "blank") 
 
+#create right panel
 with_points <- qmplot(lng, lat, data = map_cl, maptype = "toner-lite", darken = .50, legend = "bottom") +
   stat_density_2d(aes(fill = ..level..), geom = "polygon",
                   alpha = .75, color = NA, size = .05) +
@@ -43,8 +30,7 @@ with_points <- qmplot(lng, lat, data = map_cl, maptype = "toner-lite", darken = 
   guides(fill = guide_colourbar(barwidth = 7,
                               label.position = "bottom"))
 
+#append panels together and save
 blank + with_points +
   ggsave(filename = "../output/map_point_density.png",
          width = 6, height = 5.5, units = "in", dpi = 300)
-
-
