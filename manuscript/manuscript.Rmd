@@ -1,8 +1,21 @@
 ---
 title: "Estimating Neighborhood Rents with Scraped Data"
 author: "Chris Hess and Sarah Chasins"
-output:  pdf_document
-abstract: "Online classified ads are a key source of information about local rental housing markets. This research first assesses the agreement of census tract rent estimates based on scraped rental advertisements with existing data sources. The second component of the paper investivates temporal and spatial dynamics in one-bedroom rents among Seattle neighborhoods using spatial models. Posterior distributions of all model hyperparameters and parameters are estimated with integrated nested Laplace approximations (INLA). Training data for models cover quarterly tract estimates for Q2 2017 through Q1 2018, while the test data are Q2 2018 median values as observed. The top model assumes that spatial and temporal dynamics are separable, i.e. independent of each other, and non-interactive. This spatial random-effects model with AR(1) temporal structure achieves a mean absolute error (MAE) of about $100 for the training data and $140 for the test data."
+output:
+  html_document:
+    df_print: paged
+abstract: Online classified ads are a key source of information about local rental
+  housing markets. This research first assesses the agreement of census tract rent
+  estimates based on scraped rental advertisements with existing data sources. The
+  second component of the paper investivates temporal and spatial dynamics in one-bedroom
+  rents among Seattle neighborhoods using spatial models. Posterior distributions
+  of all model hyperparameters and parameters are estimated with integrated nested
+  Laplace approximations (INLA). Training data for models cover quarterly tract estimates
+  for Q2 2017 through Q1 2018, while the test data are Q2 2018 median values as observed.
+  The top model assumes that spatial and temporal dynamics are separable, i.e. independent
+  of each other, and non-interactive. This spatial random-effects model with AR(1)
+  temporal structure achieves a mean absolute error (MAE) of about $100 for the training
+  data and $140 for the test data.
 ---
 
 ```{r setup, include=FALSE}
