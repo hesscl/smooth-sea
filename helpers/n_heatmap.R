@@ -43,7 +43,7 @@ cal <- plyr::ddply(cal, plyr::.(yearmon), transform, monthweek = 1+week-min(week
 
 #make the heatmap
 ggplot(cal, aes(x = monthweek, y = weekdayf, fill = n)) +
-  scale_fill_viridis_c(na.value = "grey80", direction = 1, option = "A") +
+  scale_fill_viridis_c(na.value = "grey80", direction = -1, option = "A") +
   scale_x_continuous(breaks = c(1, 2, 3, 4)) +
   scale_size(range=c(5,20))+
   geom_tile(color = "white") +

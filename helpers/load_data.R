@@ -11,13 +11,15 @@ load_data <- function(listings = FALSE){
              GISJOIN %in% sea_shp@data$GISJOIN, #only listings with valid Bed/Rent, seattle tracts
              matchType != "Google Maps Lat/Long", #need to have address, not approximate
              cleanBeds %in% c(0, 1, 2, 3)) %>% 
-      distinct(cleanBeds, cleanRent, cleanSqft, matchAddress, 
-               matchAddress2, .keep_all = T) %>% #dedupe to unique address-bed-rent combos
-      dplyr::select(listingDate, GISJOIN, seattle, matchAddress, matchType, 
-                    cleanBeds, catBeds, cleanRent, cleanSqft, lat, lng) %>% #SELECT these columns
-      mutate(listingDate = as.Date(listingDate),
+      mutate(lat = round(lat, 3),
+             lng = round(lng, 3),
+             listingDate = as.Date(listingDate),
              listingQtr = as.yearqtr(listingDate)) %>%
-      filter(listingQtr >= "2017 Q1", listingQtr < "2018 Q3")
+      arrange(desc(listingDate)) %>%
+      distinct(cleanBeds, cleanSqft, lat, lng, GISJOIN, .keep_all = T) %>% #dedupe to unique latXlngXtractXbedXsqft combos
+      dplyr::select(listingDate, listingQtr, GISJOIN, seattle, matchAddress, matchAddress2, matchType, 
+                    cleanBeds, catBeds, cleanRent, cleanSqft, lat, lng) %>% #SELECT these columns
+      filter(listingQtr >= "2017 Q1", listingQtr < "2018 Q3") 
     
     #return table of listings if arg listings == TRUE
     if(listings){

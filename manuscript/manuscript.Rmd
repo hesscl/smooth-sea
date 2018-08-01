@@ -2,7 +2,7 @@
 title: "Estimating Neighborhood Rents with Scraped Data"
 author: "Chris Hess and Sarah Chasins"
 output:
-  html_document:
+  pdf_document:
     df_print: paged
 abstract: Online classified ads are a key source of information about local rental
   housing markets. This research first assesses the agreement of census tract rent
@@ -472,7 +472,7 @@ ggplot(bym_df %>% filter(model == "E. Spatial AR(1)"),
   geom_line(lwd = .25, color = "black", alpha = .5) +
   geom_point() +
   scale_y_continuous(labels = scales::dollar) +
-  scale_color_viridis_c(option = "A", labels = scales::dollar) +
+  scale_color_viridis_c(option = "A", labels = scales::dollar, direction = -1) +
   xlab("") +
   ylab("Median 1B Rent\n") +
   labs(color="Quarterly\nDeviation") +
@@ -493,7 +493,7 @@ obs_map_series <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = act
   facet_grid(~ listingQtr) +
   geom_polygon(color = "grey85", lwd = .05) +
   scale_fill_viridis_c(labels = scales::dollar, na.value = "grey80",
-                       limits = c(800, 2800), option = "A") +
+                       limits = c(800, 2800), option = "A", direction = -1) +
   coord_quickmap() +
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
@@ -507,7 +507,7 @@ bym_map_series <- ggplot(sea_f, aes(x = long, y = lat, group = group, fill = bym
   facet_grid(~ listingQtr) +
   geom_polygon(color = "grey85", lwd = .05) +
   scale_fill_viridis_c(labels = scales::dollar, na.value = "grey80",
-                       limits = c(800, 2800), option = "A") +
+                       limits = c(800, 2800), option = "A", direction = -1) +
   coord_quickmap() +
   theme(axis.title = element_blank(),
         axis.text = element_blank(),

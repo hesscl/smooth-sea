@@ -19,7 +19,7 @@ blank <- qmplot(lng, lat, data = map_cl, maptype = "toner-lite", geom = "blank")
 with_points <- qmplot(lng, lat, data = map_cl, maptype = "toner-lite", darken = .50, legend = "bottom") +
   stat_density_2d(aes(fill = ..level..), geom = "polygon",
                   alpha = .75, color = NA, size = .05) +
-  scale_fill_viridis_c("1B Listings", option = "A") +
+  scale_fill_viridis_c("1B Listings", option = "A", direction = -1) +
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank(),

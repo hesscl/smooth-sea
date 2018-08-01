@@ -129,7 +129,7 @@ ggplot(tract_f %>% filter(catBeds == "1 Bedroom"), aes(x = long, y = lat, group 
   geom_polygon(data = tract2010_bg, aes(x = long, y = lat, group = group), 
                color = "grey90", fill = "grey70", lwd = .15) +
   geom_polygon(color = "grey90", lwd = .15) +
-  scale_fill_viridis_c(labels = scales::dollar, na.value = "grey70", option = "A") +
+  scale_fill_viridis_c(labels = scales::dollar, na.value = "grey70", option = "A", direction = -1) +
   coord_quickmap() +
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
