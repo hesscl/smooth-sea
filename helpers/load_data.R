@@ -15,11 +15,11 @@ load_data <- function(listings = FALSE){
              lng = round(lng, 3),
              listingDate = as.Date(listingDate),
              listingQtr = as.yearqtr(listingDate)) %>%
-      arrange(desc(listingDate)) %>%
+      arrange(listingDate) %>%
+      filter(listingQtr >= "2017 Q1", listingQtr < "2018 Q3") %>%
       distinct(cleanBeds, cleanSqft, lat, lng, GISJOIN, .keep_all = T) %>% #dedupe to unique latXlngXtractXbedXsqft combos
       dplyr::select(listingDate, listingQtr, GISJOIN, seattle, matchAddress, matchAddress2, matchType, 
-                    cleanBeds, catBeds, cleanRent, cleanSqft, lat, lng) %>% #SELECT these columns
-      filter(listingQtr >= "2017 Q1", listingQtr < "2018 Q3") 
+                    cleanBeds, catBeds, cleanRent, cleanSqft, lat, lng) #SELECT these columns
     
     #return table of listings if arg listings == TRUE
     if(listings){
